@@ -1,0 +1,90 @@
+<settings version="1">
+	<section id="screensaver.immich.slideshow">
+		<category id="30000" label="30000">
+			<description>Basic Settings</description>
+			<group id="1">
+				<setting id="URL" label="30100" help="30101" type="string">
+					<description>URL</description>
+					<level>0</level>
+					<default>http://fontesnas:2283</default>
+					<control type="edit" format="string"/>
+				</setting>
+				<setting id="APIKey" label="30110" help="30111" type="string">
+					<description>immich API Key</description>
+					<level>0</level>
+					<default>[]</default>
+					<control type="edit" format="string"/>
+				</setting>
+			</group>
+			<group id="2">
+				<setting id="time" label="30160" help="30161" type="integer">
+					<description>Amount of seconds to display each image</description>
+					<level>0</level>
+					<default>10</default>
+					<control format="string" type="spinner" />
+					<constraints>
+						<minimum>2</minimum>
+						<step>1</step>
+						<maximum>60</maximum>
+					</constraints>
+				</setting>
+				<setting id="limit" label="30170" help="30171" type="integer">
+					<description>Maximum number of pictures to display in each group</description>
+					<level>0</level>
+					<default>10</default>
+					<control format="string" type="spinner" />
+					<constraints>
+						<minimum>0</minimum>
+						<step>1</step>
+						<maximum>100</maximum>
+					</constraints>
+				</setting>
+				<setting id="level" label="30180" help="30181" type="integer">
+					<description>Dim level</description>
+					<level>0</level>
+					<default>0</default>
+					<control format="percentage" type="slider">
+						<popup>false</popup>
+					</control>
+					<constraints>
+						<minimum>0</minimum>
+						<step>1</step>
+						<maximum>100</maximum>
+					</constraints>
+				</setting>
+			</group>
+			<group id="4">
+				<setting id="date" label="30310" help="30311" type="boolean">
+					<description>Display picture date</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle" />
+				</setting>
+				<setting id="tags" label="30320" help="30321" type="boolean">
+					<description>Display additional picture tags</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle" />
+				</setting>
+				<setting id="music" label="30330" help="30331" type="boolean">
+					<description>Display music info during audio playback</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle" />
+				</setting>
+				<setting id="clock" label="30340" help="30341" type="boolean">
+					<description>Display Clock</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle" />
+				</setting>
+				<setting id="burst" label="30350" help="30351" type="boolean">
+					<description>Display burst mode images more quickly</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle" />
+				</setting>
+			</group>
+		</category>
+	</section>
+</settings>
