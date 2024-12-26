@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="screensaver.immich.slideshow" name="Immich Slideshow" version="1.0.0" provider-name="sfontes">
+	<requires>
+		<import addon="xbmc.python" version="3.0.0" />
+		<import addon="script.module.iptcinfo3" version="2.1.4+matrix.1" />
+		<import addon="script.module.dateutil" version="2.8.2"/>
+		<import addon="script.module.requests" version="2.31.0" />
+	</requires>
+	<extension point="xbmc.ui.screensaver" library="default.py" />
+	<extension point="xbmc.addon.metadata">
+		<summary lang="en_GB">Slideshow of pictures from the [I]Immich Database[/I]</summary>
+		<description lang="en_GB">This screensaver uses the [I]immich[/I] API to show groups of pictures that were all taken on the same date. A date is chosen at random, then pictures from the chosen date are displayed, ordered by time taken. After some number of pictures are displayed, the next random date is chosen. This allows you to see random selections from your picture collection, but within the context of other pictures from the same event.
+		</description>
+		<platform>all</platform>
+		<license>GPL-2.0-only</license>
+		<forum></forum>
+		<source></source>
+		<assets>
+			<icon>resources/icon.png</icon>
+			<fanart>resources/fanart.jpg</fanart>
+		</assets>
+		<news></news>
+	</extension>
+</addon>
