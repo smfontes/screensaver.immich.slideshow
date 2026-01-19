@@ -6,7 +6,7 @@
 				<setting id="URL" label="30100" help="30101" type="string">
 					<description>URL</description>
 					<level>0</level>
-					<default>http://fontesnas:2283</default>
+					<default>http://immich.local:2283</default>
 					<control type="edit" format="string"/>
 				</setting>
 				<setting id="APIKey" label="30110" help="30111" type="string">
@@ -53,7 +53,7 @@
 					</constraints>
 				</setting>
 			</group>
-			<group id="4">
+			<group id="3">
 				<setting id="date" label="30310" help="30311" type="boolean">
 					<description>Display picture date</description>
 					<level>0</level>
@@ -83,6 +83,74 @@
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle" />
+				</setting>
+				<setting id="panorama" label="30360" help="30361" type="boolean">
+					<description>Use slide effect for panorama images</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle" />
+				</setting>
+				<setting id="kenburns" label="30370" help="30371" type="boolean">
+					<description>Use Ken Burns effects on slide</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle" />
+				</setting>
+			</group>
+		</category>
+		<category id="30500" label="30500">
+			<group id="5">
+				<description>Get dates from database</description>
+				<setting id="dbdates" label="30510" help="30511" type="boolean">
+					<description>Get dates from database directly, instead of from API</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle"/>
+				</setting>
+				<setting id="dbhost" label="30520" help="30521" type="string" parent="dbdates">
+					<description>Port number of the immich databsase server</description>
+					<level>1</level>
+					<default>homelab</default>
+					<control type="edit" format="string"/>
+					<dependencies>
+						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
+					</dependencies>
+				</setting>
+				<setting id="dbport" label="30530" help="30531" type="integer" parent="dbdates">
+					<description>Port number of the immich databsase server</description>
+					<level>1</level>
+					<default>5432</default>
+					<control type="edit" format="integer"/>
+					<dependencies>
+						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
+					</dependencies>
+				</setting>
+				<setting id="dbname" label="30540" help="30541" type="string" parent="dbdates">
+					<description>Name of the immich databsase</description>
+					<level>1</level>
+					<default>immich</default>
+					<control type="edit" format="string"/>
+					<dependencies>
+						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
+					</dependencies>
+				</setting>
+				<setting id="dbuser" label="30550" help="30551" type="string" parent="dbdates">
+					<description>Name of the immich databsase user</description>
+					<level>1</level>
+					<default>postgres</default>
+					<control type="edit" format="string"/>
+					<dependencies>
+						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
+					</dependencies>
+				</setting>
+				<setting id="dbpassword" label="30560" help="30561" type="string" parent="dbdates">
+					<description>The immich databsase password</description>
+					<level>1</level>
+					<default>postgres</default>
+					<control type="edit" format="string"/>
+					<dependencies>
+						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
+					</dependencies>
 				</setting>
 			</group>
 		</category>

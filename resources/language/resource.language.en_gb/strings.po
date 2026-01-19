@@ -95,6 +95,78 @@ msgctxt "#30351"
 msgstr "Help for msgctxt #30350"
 msgid "If pictures are taken in 'burst mode' with a camera, there may be many very similar pictures occuring in the same second. This makes for a very boring slideshow if each slide is shown for a few seconds. Select this to speed up the sldeshow so that there is much less time between 'burst mode' images. If this is not enabled, only the first and last pictures in a group taken within seconds of each other will be shown."
 
+msgctxt "#30360"
+msgid "Use slide effect for panorama images"
+msgstr "Use slide effect for panorama images"
+
+msgctxt "#30361"
+msgstr "Help for msgctxt #30360"
+msgid "For panorama images, start and one end of the image and pan across to the other end"
+
+msgctxt "#30370"
+msgid "Use 'Ken Burns' effects on slides"
+msgstr "Use 'Ken Burns' effects on slidess"
+
+msgctxt "#30371"
+msgstr "Help for msgctxt #30360"
+msgid "Slides will be slowly panned or zoomed during display"
+
+msgctxt "#30500"
+msgstr ""
+msgid "Advanced"
+
+msgctxt "#30511"
+msgstr "Help for msgctxt #30500"
+msgid "Improve disribution of dates for picture groups"
+
+msgctxt "#30510"
+msgstr ""
+msgid "Use direct database lookup to get unique dates for image groups"
+
+msgctxt "#30511"
+msgstr "Help for msgctxt #30510"
+msgid "Choice of date is more distributed"
+
+msgctxt "#30520"
+msgstr "Host of the immich database server"
+msgid "Host of the immich database server"
+
+msgctxt "#30521"
+msgstr "Help for msgctxt #30521"
+msgid "Where your immich server is running"
+
+msgctxt "#30530"
+msgid "Port number of the immich database server"
+msgstr "Port number of the immich database server"
+
+msgctxt "#30531"
+msgstr "Help for msgctxt #30530"
+msgid "Port number of the database service in immich. Typically 5432. You will have to edit the docker-compose.yml file for immich to expose the port for remote access. Add \n'ports:\n\t- 5432:5432'\n to the database service."
+
+msgctxt "#30540"
+msgid "Name of the immich database"
+msgstr "Name of the immich database"
+
+msgctxt "#30541"
+msgstr "Help for msgctxt #30540"
+msgid "The value of the DB_DATABASE_NAME variable in the immich .env file"
+
+msgctxt "#30550"
+msgid "Name of the immich database user"
+msgstr "Name of the immich database user"
+
+msgctxt "#30551"
+msgstr "Help for msgctxt #30550"
+msgid "The value of the DB_USERNAME variable in the immich .env file"
+
+msgctxt "#30560"
+msgid "The immich database password"
+msgstr "The immich database password"
+
+msgctxt "#30561"
+msgstr "Help for msgctxt #30560"
+msgid "The value of the DB_PASSWORD variable in the immich .env file"
+
 msgctxt "#30400"
 msgid "Connection error"
 msgstr ""

@@ -198,22 +198,21 @@
 				</control>
 			</control>
 		</control>
-		<control type="image">
+		<control type="group">
 			<description>Splash screen when waiting to start slideshow</description>
-			<top>310</top>
-			<left>730</left>
-			<width>461</width>
-			<height>461</height>
-			<aspectratio>keep</aspectratio>
-			<texture>screensaver-splash.png</texture>
-			<animation effect="rotate" end="-360" center="auto" time="7000" loop="true" reversible="false" condition="!String.IsEqual(Window.Property(Screensaver.Splash),hide)">Conditional</animation>
-			<animation type="WindowOpen">
-				<effect type="fade" start="0" end="100" time="1000" delay="500"/>
-			</animation>
-			<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Splash),hide)">
-				<effect type="fade" start="100" end="0" time="500"/>
-			</animation>
 			<visible>!String.IsEqual(Window.Property(Screensaver.Splash),hide)</visible>
+			<control type="image">
+				<texture>screensaver-black.png</texture>
+			</control>
+			<control type="image">
+				<top>310</top>
+				<left>730</left>
+				<width>461</width>
+				<height>461</height>
+				<aspectratio>keep</aspectratio>
+				<texture>screensaver-splash.png</texture>
+				<animation effect="rotate" end="-360" center="auto" time="7000" loop="true" reversible="false" condition="!String.IsEqual(Window.Property(Screensaver.Splash),hide)">Conditional</animation>
+			</control>
 		</control>
 		<control type="group">
 			<description>The clock</description>
@@ -237,7 +236,7 @@
 					<description>Hours</description>
 					<right>139</right>
 					<bottom>87</bottom>
-					<width>200</width>
+					<width>205</width>
 					<height>112</height>
 					<align>right</align>			
 					<font>METF_Hours</font>
@@ -249,7 +248,7 @@
 					<description>Minutes</description>
 					<right>42</right>
 					<bottom>104</bottom>
-					<width>85</width>
+					<width>95</width>
 					<height>66</height>
 					<align>right</align>
 					<font>METF_Minutes</font>
@@ -261,7 +260,7 @@
 					<description>AM/PM</description>
 					<right>42</right>
 					<bottom>30</bottom>
-					<width>90</width>
+					<width>115</width>
 					<height>66</height>
 					<align>right</align>
 					<font>METF_FontAMPM</font>

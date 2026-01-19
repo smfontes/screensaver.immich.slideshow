@@ -38,6 +38,19 @@
 #     4. If music is playing when the slideshow is running, information about the
 #        currently playing music can be displayed.
 #     5. Slides can be displayed dimmed.
+#     6. For panoramic slides, there is the option to pan across the slide from end
+#        to end, rather than showing the entire slide.
+#     7. There is the option to turn on "Ken Burns" mode for slides
+#     8. There is the option to randomly choose from a list of unique picture dates,
+#        rather than choosing a random picture to get a date for the image group.
+#        This allows each date to be chosen with the same probability, rather than
+#        dates with more pictures being chosen more frequently. Requires you to set
+#        up direct access to the immich database.
+
+import xbmc
+import xbmcgui
+import xbmcaddon
+import xbmcvfs
 
 import os
 import glob
@@ -52,10 +65,9 @@ from iptcinfo3 import IPTCInfo
 import logging
 logging.getLogger("iptcinfo").setLevel(logging.ERROR)
 
-import xbmc
-import xbmcgui
-import xbmcaddon
-import xbmcvfs
+sys.path.insert(0, os.path.join(sys.path[0], 'modules'))
+import pg8000.dbapi # For postgressql database access
+import imagesize
 
 ADDON = xbmcaddon.Addon()
 ADDON_ID = ADDON.getAddonInfo('id')
@@ -69,12 +81,6 @@ def log(msg, level=xbmc.LOGINFO):
 # Formats that can be displayed in a slideshow
 PICTURE_FORMATS = ('bmp', 'jpeg', 'jpg', 'gif', 'png', 'tiff', 'mng', 'ico', 'pcx', 'tga')
 
-# Slide transition
-FADEOUT_EFFECT = [['conditional', 'effect=fade start=100 end=0 time=2500 reversible=false condition=true']]
-FADEIN_EFFECT = [['conditional', 'effect=fade start=0 end=100 time=2500 reversible=false condition=true']]
-# Burst mode transition
-NO_EFFECT = []
-
 IMMICH_TEMP_FILE_EXTENSION = '.immich-tmp'
 
 class Screensaver(xbmcgui.WindowXMLDialog):
@@ -87,6 +93,19 @@ class Screensaver(xbmcgui.WindowXMLDialog):
             self.Monitor = MyMonitor(action = self._exit)
             # Get addon settings
             self._get_settings()
+            if (self.slideshow_dbdates):
+                self.IMMICHDB = pg8000.dbapi.Connection(
+                    database=self.slideshow_dbname,
+                    user=self.slideshow_dbuser,
+                    password=self.slideshow_dbpassword,
+                    host=self.slideshow_dbhost,
+                    port=self.slideshow_dbport
+                )
+                #get a list of all the distinct dates of the images
+                self.distinct_dates = self._get_distinct_dates()
+                # At the start of the show, use the first random date
+                self.distinct_date_index = 0
+
              # Set UI Component information
             self._set_ui_controls()
             # Start the show
@@ -104,6 +123,14 @@ class Screensaver(xbmcgui.WindowXMLDialog):
             # Delete any temporary image files that have been retrieved
             self._delete_temporary_files(exiting=True)
 
+    def _get_distinct_dates(self):
+        # Get a list of all the distinct dates of the images
+        query = ' SELECT DISTINCT DATE("fileCreatedAt") FROM asset; '
+        distinct_dates = list(self._exec_query(query))
+        # Randomize the order that the date groups will be shown
+        random.shuffle(distinct_dates)
+        return distinct_dates
+
     def _get_settings(self):
         # Read addon settings
         self.slideshow_URL = ADDON.getSetting('URL')
@@ -115,8 +142,17 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self.slideshow_music = ADDON.getSettingBool('music')
         self.slideshow_clock = ADDON.getSettingBool('clock')
         self.slideshow_burst = ADDON.getSettingBool('burst')
+        self.slideshow_panorama = ADDON.getSettingBool('panorama')
+        self.slideshow_kenburns = ADDON.getSettingBool('kenburns')
         # convert float to hex value usable by the skin
         self.slideshow_dim = hex(int('%.0f' % (float(ADDON.getSettingInt('level')) * 2.55)))[2:] + 'ffffff'
+        self.slideshow_dbdates = ADDON.getSettingBool('dbdates')
+        self.slideshow_dbhost = ADDON.getSetting('dbhost')
+        self.slideshow_dbport = ADDON.getSettingInt('dbport')
+        self.slideshow_dbname = ADDON.getSetting('dbname')
+        self.slideshow_dbuser = ADDON.getSetting('dbuser')
+        self.slideshow_dbpassword = ADDON.getSetting('dbpassword')
+        self.slideshow_offset_adjustment = 0
 
     def _set_ui_controls(self):
         # Get the screensaver window id
@@ -141,8 +177,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         # start with image 1
         current_image_control = self.image_control1
         order = [1,2]
-        # fastmode is true when we find pictures taken in burst mode
-        fastmode = False
         # loop until onScreensaverDeactivated is called
         while (not self.Monitor.abortRequested()) and (not self.stop):
             # Get the next grouping of pictures
@@ -150,28 +184,8 @@ class Screensaver(xbmcgui.WindowXMLDialog):
             for image_group in image_groupings:
                 # Delete any temporary image files that have been retrieved
                 self._delete_temporary_files()
+                # fastmode is true when we find pictures taken in burst mode
                 fastmode = True if (len(image_group) > 2 and self.slideshow_burst) else False
-                if fastmode:
-                    # Found a group of pictures taken in burst mode
-                    # Transition as fast as possilble
-                    timetowait = 0
-                    # set animations
-                    animation1 = NO_EFFECT
-                    animation2 = NO_EFFECT
-                    # Turn off background images
-                    self.background_image1.setVisible(False)
-                    # Only show label transition animation when changing to a new date
-                    self._set_info_fields(image_group[0],transition=(image_group == image_groupings[0]))
-                else:
-                    # Normal transition time
-                    timetowait = self.slideshow_time
-                    # set animations
-                    animation1 = FADEIN_EFFECT
-                    animation2 = FADEOUT_EFFECT
-                    # Turn on background images
-                    self.background_image1.setVisible(True)
-                    self.background_image2.setVisible(True)
-
                 # iterate through all the images in the group
                 for image in image_group:
                     image_uuid = image[1]
@@ -180,10 +194,9 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                         # Download failed, go to next image
                         continue
 
-                    if not fastmode:
-                        # Add picture information to slide
-                        # Only show label transition animation when changing to a new date
-                        self._set_info_fields(image,transition=(image_group == image_groupings[0]))
+                    first_in_group = image == image_group[0]
+                    last_in_group = image == image_group[-1]
+                    if not fastmode or (fastmode and (first_in_group or last_in_group)):
                         # Add background image to gui
                         if order[0] == 1:
                             self.background_image1.setImage(local_img_name, False)
@@ -192,12 +205,22 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                         # add fade anim to background images
                         self._set_prop('Fade%d' % order[0], '0')
                         self._set_prop('Fade%d' % order[1], '1')
+                        # Add picture information to slide
+                        # Only show label transition animation when changing to a new date
+                        self._set_info_fields(image,transition=(image_group == image_groupings[0]))    
 
                     # Show the slide
-                     # About to show images, so turn off splash screen
-                    self._set_prop('Splash', 'hide')
-                    current_image_control.setAnimations(animation1)
                     current_image_control.setImage(local_img_name, False)
+                    timetowait, animation = self.get_animimation(current_image_control,local_img_name, fastmode, first_in_group, last_in_group)
+                    current_image_control.setAnimations(animation)
+                    # About to show images, so turn off splash screen
+                    self._set_prop('Splash', 'hide')
+
+                    # display the image for the specified amount of time
+                    count = timetowait
+                    while (not self.Monitor.abortRequested()) and (not self.stop) and count > 0:
+                        count -= 1000
+                        xbmc.sleep(1000)
 
                     # define next image
                     if current_image_control == self.image_control1:
@@ -206,19 +229,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                     else:
                         current_image_control = self.image_control1
                         order = [1,2]
-
-                    # transition out the previous slide control
-                    current_image_control.setAnimations(animation2)
-
-                    # Always show the last slide of a group for requested amount of time (even for burst mode slides)
-                    if image == image_group[-1]:
-                        timetowait = self.slideshow_time
-
-                    # display the image for the specified amount of time
-                    count = timetowait
-                    while (not self.Monitor.abortRequested()) and (not self.stop) and count > 0:
-                        count -= 1
-                        xbmc.sleep(1000)
 
                     # break out of the 'images in image_group loop' if onScreensaverDeactivated is called
                     if  self.stop or self.Monitor.abortRequested():
@@ -282,11 +292,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                     if len(image_groupings[group_index]) > 2:
                         image_groupings[group_index].pop(1)
             else:
-                # Insert a singleton of first burst image so it pauses before starting the burst
-                if len(image_groupings[group_index]) > 2:
-                    image_groupings.insert(group_index,[image_groupings[group_index][0]])
-                    group_index +=1
-                # image greater than two seconds from previous image go in a new group
                 group_index += 1
                 image_groupings.append([all_images_for_date[image_index]])
             prev_image_date_object = this_image_date_object
@@ -299,22 +304,40 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         else:
             # More pictures on this date than the max allowed
             # Set a random offset into the list of pictures so we don't always start wtih the earliest picture on the date.
-            offset = random.randrange(len(image_groupings) - self.slideshow_limit)
+            offset = random.randrange(len(image_groupings) - self.slideshow_limit) 
+            if self.slideshow_offset_adjustment != 0:
+                offset = self.slideshow_offset_adjustment
             return image_groupings[offset:offset+self.slideshow_limit]
 
     def _get_random_date(self):
-        # Just get one random picture
-        response = self._api_call("POST", "/api/search/random", json.dumps({"size": 1}))
-        # Get the date that the picture was taken
-        chosen_date = response[0]['localDateTime'][:10]
+        if (self.slideshow_dbdates):
+            # Use the next date in the list of distinct dates, then get all of the pictures taken on the same date.
+            # Set a random offset into the list of pictures so we don't always start wtih the earliest picture on the date.
+
+            # Get some random date that at least one of the pictures was taken (each date is the single element of a list)
+            chosen_date = self.distinct_dates[self.distinct_date_index][0]
+            # Next time choose a new date
+            self.distinct_date_index += 1
+            if self.distinct_date_index == len(self.distinct_dates):
+                # All of the dates have been used, so start over with a new list of all of the dates
+                random.shuffle(self.distinct_dates)
+                self.distinct_date_index = 0
+        else:
+            # Just get one random picture
+            response = self._api_call("POST", "/api/search/random", json.dumps({"size": 1}))
+            # Get the date that the picture was taken
+            chosen_date = response[0]['localDateTime'][:10]
+
         # chosen_date = "2022-06-21"
-        # chosen_date = "2017-08-03"
+        # chosen_date = "2017-08-03"; self.slideshow_offset_adjustment = 15 # burst
         # chosen_date = "2001-06-02"
         # chosen_date = "2017-06-08"
-        # chosen_date = "2013-08-01"
+        # chosen_date = "2013-08-01"; self.slideshow_offset_adjustment = 71 # burst
         # chosen_date = "2021-05-07" # sublocation
         # chosen_date = "2021-04-11" # headline
         # chosen_date = "2010-10-03" # landscape and portrait mixed
+        # chosen_date = "2025-12-17"; self.slideshow_offset_adjustment = 43 # horizontal panorama
+        # chosen_date = "2025-12-16"; self.slideshow_offset_adjustment = 113 # vertical panorama
         return chosen_date
 
     def _get_local_filename_for_image(self, image):
@@ -329,7 +352,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         if transition:
             self._set_prop('FadeoutLabels' ,'1')
             xbmc.sleep(750)
-
         # Assign whatever info was found into the correct labels
         if 'Headline' in info:
             self._set_prop('Headline',info['Headline'])
@@ -373,6 +395,10 @@ class Screensaver(xbmcgui.WindowXMLDialog):
     def _get_image_info(self, image):
         immich_info = {}
         iptc_info = {}
+        # Get info about image from the immich API
+        response = self._api_call("GET", "/api/assets/"+image[1], json.dumps({}))
+        exifinfo = response['exifInfo']
+        self._set_prop('orientation',exifinfo['orientation'])
         # Get all of the info for this image
         if self.slideshow_date:
             # Get the date and time the image was taken
@@ -380,9 +406,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
             immich_info['Date'] = time.strftime('%A %B %e, %Y',time.strptime(imgdatetime, '%Y-%m-%dT%H:%M:%S'))
             immich_info['Time'] = time.strftime('%I:%M %p',time.strptime(imgdatetime, '%Y-%m-%dT%H:%M:%S'))
         if self.slideshow_tags:
-            # Get info about image from the immich API
-            response = self._api_call("GET", "/api/assets/"+image[1], json.dumps({}))
-            exifinfo = response['exifInfo']
             immich_info['Country'] = exifinfo['country']
             immich_info['State'] = exifinfo['state']
             immich_info['City'] = exifinfo['city']
@@ -414,7 +437,80 @@ class Screensaver(xbmcgui.WindowXMLDialog):
             pass
         return iptc_info
 
+    def get_animimation(self, cur_img, img_path, fastmode, first_in_group, last_in_group):
+        if fastmode and not (first_in_group or last_in_group):
+            return 0, []
+        FADE_FRACTION = 0.2
+        EXTRA_TIME_FRACTION = 0.25
+        slideshow_ms = self.slideshow_time * 1000
+        fade_ms = min(slideshow_ms * FADE_FRACTION,2000)
+        if fastmode:
+            FADEIN_EFFECT =  ['conditional', f'effect=fade start=0 end=100 time={fade_ms} reversible=false condition=true']
+            FADEOUT_EFFECT = ['conditional', f'effect=fade start=100 end=0 time={fade_ms*2} delay={slideshow_ms+(2*fade_ms)} reversible=false condition=true']
+            if first_in_group:
+                return slideshow_ms,[FADEIN_EFFECT]
+            else:
+                return slideshow_ms,[FADEOUT_EFFECT]
+
+        screen_w = self.winid.getWidth()
+        screen_h = self.winid.getHeight()
+        img_w, img_h = imagesize.get(img_path)
+        aspect_ratio = max(img_w, img_h) / min(img_w, img_h)
+        PANORAMA_RATIO = 1.85
+        if (self.slideshow_panorama and aspect_ratio >= PANORAMA_RATIO):
+            orientation = self.winid.getProperty('Screensaver.orientation')
+            if img_w > img_h and orientation not in ("8", "6"):            # horizontal panorama
+                baseline_h = screen_w * (img_h / img_w)                    #   scale factor to make image height fit the screen
+                scale_start = scale_end = (screen_h / baseline_h) * 100.0  
+                scaled_w = screen_w * (scale_start / 100.0)                #   width of scaled image
+                slide_x = ((scaled_w / 2.0) - (screen_w / 2.0))            #   amount to shift to bring left side on screen
+                slide_y = 0                                                #   don't shift in y direction
+                total_ms = int(slideshow_ms * (scaled_w / screen_w))       #   increase the time so rate is the same
+                duration_ms = total_ms - ((slideshow_ms * EXTRA_TIME_FRACTION) * (scaled_w / screen_w))      #   fudge factor to make fading work
+            else:                                                          # verticalal panorama
+                baseline_w = screen_h * (img_h / img_w)                    #   scale factor to make image width fit the screen
+                scale_start = scale_end = (screen_w / baseline_w) * 100.0
+                scaled_h = screen_h * (scale_start / 100.0)                #   height of scaled image
+                slide_y = -((scaled_h / 2.0) - (screen_h / 2.0))           #   amount to shift to bring bottom on screen
+                slide_x = 0                                                #   dont shift in the x direction
+                total_ms = int(slideshow_ms * (scaled_h / screen_h))       #   increase the time so rate is the same
+                duration_ms = total_ms - ((slideshow_ms * EXTRA_TIME_FRACTION) * (scaled_h / screen_h))      #   fudge factor to make fading work
+        else: # Not a panorama slide
+            if self.slideshow_kenburns:
+                base_scale = 115 + self.slideshow_time
+                scale_h = screen_h * (base_scale / 100.0)
+                scale_w = screen_w * (base_scale / 100.0)
+                slide_x = random.randint(-1,1) * ((scale_w - screen_w) / 2.0)
+                slide_y = random.randint(-1,1) * ((scale_h - screen_h) / 2.0)
+                scale_start = base_scale if (slide_x,slide_y) != (0,0) else 100 
+                scale_end = base_scale if (slide_x,slide_y) != (0,0) else base_scale * 1.3
+            else: # Just crossfade
+                slide_x = slide_y = 0
+                scale_start = scale_end = 100
+            duration_ms = slideshow_ms
+            total_ms = slideshow_ms + (slideshow_ms * EXTRA_TIME_FRACTION)
+
+        zoom_ms = slide_ms = fadeout_start = total_ms + (slideshow_ms * FADE_FRACTION)
+        animation = [
+                        ["conditional", f"effect=fade  time={fade_ms}  start=0 end=100                                     condition=true"],
+                        ["conditional", f"effect=slide time={slide_ms} start={slide_x},{slide_y} end={-slide_x},{-slide_y} condition=true"],
+                        ["conditional", f"effect=zoom  time={zoom_ms}  start={scale_start} end={scale_end} center=auto     condition=true"],
+                        ["conditional", f"effect=fade  time={fade_ms}  start=100 end=0 delay={fadeout_start}               condition=true"],
+                    ]
+        return duration_ms, animation
+
     # Utility functions
+    def _exec_query(self,query):
+        cursor = self.IMMICHDB.cursor()
+        cursor.execute(query)
+        records = []
+        while True:
+            rows = cursor.fetchmany(100)
+            if not rows:
+                break
+            records.extend(rows)
+        return records
+
     def _download_file(self, url, local_filename):
         try:
             with requests.get(url, stream=True, headers={'x-api-key': self.slideshow_APIKey}) as r:
@@ -507,6 +603,3 @@ class MyMonitor(xbmc.Monitor):
 
     def onDPMSActivated(self):
         self.action()
-
-
-    

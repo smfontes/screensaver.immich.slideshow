@@ -1,2 +1,6 @@
 v1.0.0
 - initial release
+V1.1.0
+- Added option to pan across panoramic slides
+- Added ability to use 'Ken Burns' effects
+- Added ability to select dates from a list of unique dates that pictures where taken

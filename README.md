@@ -26,3 +26,6 @@ dates from previous years that are the same date as today.
 3. You can choose to have information about currently playing music displayed on each slide.
 4. Slides can be displayed dimmed.
 5. If pictures are taken in "burst mode" with a camera, then you may have dozens of pictures, with multiple occuring in the same second, that look almost identical. This makes for a very boring slideshow if each slide is shown for a few seconds. When there are many pictures taken very close together in time, you can select to have the slideshow speed up for those slides, so that there is much less time  between "burst mode" images. If you choose not to use this feature, then, if there are many slides taken within the same second, only the first and last slides of the group will be shown.
+6. For panoramic slides, there is the option to pan across the slide from end to end, rather than showing the entire slide.
+7. There is the option to turn on "Ken Burns" mode for slides
+8. There is the option to randomly choose from a list of unique picture dates, rather than choosing a random picture to get a date for the image group. This allows each date to be chosen with the same probability, rather than dates with more pictures being chosen more frequently. Requires you to set up direct access to the immich database.
