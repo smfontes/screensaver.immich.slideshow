@@ -135,6 +135,8 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         # Read addon settings
         self.slideshow_URL = ADDON.getSetting('URL')
         self.slideshow_APIKey = ADDON.getSetting('APIKey')
+        # Convert to array of strings
+        self.slideshow_AlbumUUID = [tempAlbums.strip() for tempAlbums in ADDON.getSetting('albumUUID').split(',')]
         self.slideshow_time = ADDON.getSettingInt('time')
         self.slideshow_limit = ADDON.getSettingInt('limit')
         self.slideshow_date = ADDON.getSettingBool('date')
@@ -327,8 +329,11 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                 random.shuffle(self.distinct_dates)
                 self.distinct_date_index = 0
         else:
+            payload = json.dumps({"size": 1})
+            if (self.slideshow_AlbumUUID):
+                payload = json.dumps({"size": 1, "albumIds":self.slideshow_AlbumUUID})            
             # Just get one random picture
-            response = self._api_call("POST", "/api/search/random", json.dumps({"size": 1}))
+            response = self._api_call("POST", "/api/search/random", payload=payload)
             # Get the date that the picture was taken
             chosen_date = response[0]['localDateTime'][:10]
 

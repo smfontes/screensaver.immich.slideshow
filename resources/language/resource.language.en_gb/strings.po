@@ -182,3 +182,11 @@ msgstr ""
 msgctxt "#30430"
 msgid "API Key may be invalid."
 msgstr ""
+
+msgctxt "#30440"
+msgid "Album UUID"
+msgstr ""
+
+msgctxt "#30441"
+msgid "Album UUID is the last part of the Album URL"
+msgstr ""

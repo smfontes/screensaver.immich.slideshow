@@ -17,6 +17,11 @@
 				</setting>
 			</group>
 			<group id="2">
+				<setting id="albumUUID" label="30440" help="30441" type="string">
+					<description>Album UUIDs - Comma seperated UUIDs</description>
+					<default/>
+					<control format="string" type="edit" />
+				</setting>
 				<setting id="time" label="30160" help="30161" type="integer">
 					<description>Amount of seconds to display each image</description>
 					<level>0</level>
