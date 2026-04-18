@@ -1,0 +1,20 @@
+include addon.xml
+include changelog.txt
+include default.py
+include LICENSE
+include LICENSE.txt
+include README.md
+recursive-include resources *
+recursive-include modules *
+recursive-include lib *.py
+prune __mocks__
+prune __tests__
+prune .devcontainer
+prune __pycache__
+prune *.pyc
+prune .pytest_cache
+prune .git
+prune .github
+prune .vscode
+prune conftest.py
+prune build_zip.py
