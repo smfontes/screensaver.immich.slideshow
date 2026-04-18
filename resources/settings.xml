@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings version="1">
 	<section id="screensaver.immich.slideshow">
 		<category id="30000" label="30000">
@@ -15,18 +16,28 @@
 					<default>abcdefghijklmnopqrsyuvwxyz1234567890</default>
 					<control type="edit" format="string"/>
 				</setting>
+				<setting id="useAlbum" label="30440" help="30441" type="boolean">
+					<description>Enable to use an Immich Album as the source of images displayed</description>
+					<default>false</default>
+					<level>0</level>
+					<control type="toggle" />
+				</setting>
+				<setting id="albumUUID" label="30450" help="30451" type="string" parent="useAlbum">
+					<description>Album UUID is the last part of the Album URL</description>
+					<level>0</level>
+					<default>uuid</default>
+					<control type="edit" format="string"/>
+					<dependencies>
+						<dependency type="enable" setting="useAlbum">true</dependency>
+					</dependencies>
+				</setting>
 			</group>
 			<group id="2">
-				<setting id="albumUUID" label="30440" help="30441" type="string">
-					<description>Album UUIDs - Comma seperated UUIDs</description>
-					<default/>
-					<control format="string" type="edit" />
-				</setting>
 				<setting id="time" label="30160" help="30161" type="integer">
 					<description>Amount of seconds to display each image</description>
 					<level>0</level>
 					<default>10</default>
-					<control format="string" type="spinner" />
+					<control type="spinner" format="string" />
 					<constraints>
 						<minimum>2</minimum>
 						<step>1</step>
@@ -37,7 +48,7 @@
 					<description>Maximum number of pictures to display in each group</description>
 					<level>0</level>
 					<default>10</default>
-					<control format="string" type="spinner" />
+					<control type="spinner" format="string"/>
 					<constraints>
 						<minimum>0</minimum>
 						<step>1</step>
@@ -113,12 +124,12 @@
 					<control type="toggle"/>
 				</setting>
 				<setting id="dbhost" label="30520" help="30521" type="string" parent="dbdates">
-					<description>Port number of the immich databsase server</description>
+					<description>Hostname of the immich databsase server</description>
 					<level>1</level>
 					<default>homelab</default>
 					<control type="edit" format="string"/>
 					<dependencies>
-						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
+						<dependency type="visible" setting="dbdates" operator="is">true</dependency>
 					</dependencies>
 				</setting>
 				<setting id="dbport" label="30530" help="30531" type="integer" parent="dbdates">
@@ -127,7 +138,7 @@
 					<default>5432</default>
 					<control type="edit" format="integer"/>
 					<dependencies>
-						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
+						<dependency type="visible" setting="dbdates" operator="is">true</dependency>
 					</dependencies>
 				</setting>
 				<setting id="dbname" label="30540" help="30541" type="string" parent="dbdates">
@@ -136,7 +147,7 @@
 					<default>immich</default>
 					<control type="edit" format="string"/>
 					<dependencies>
-						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
+						<dependency type="visible" setting="dbdates" operator="is">true</dependency>
 					</dependencies>
 				</setting>
 				<setting id="dbuser" label="30550" help="30551" type="string" parent="dbdates">
@@ -145,7 +156,7 @@
 					<default>postgres</default>
 					<control type="edit" format="string"/>
 					<dependencies>
-						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
+						<dependency type="visible" setting="dbdates" operator="is">true</dependency>
 					</dependencies>
 				</setting>
 				<setting id="dbpassword" label="30560" help="30561" type="string" parent="dbdates">
@@ -154,7 +165,7 @@
 					<default>postgres</default>
 					<control type="edit" format="string"/>
 					<dependencies>
-						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
+						<dependency type="visible" setting="dbdates" operator="is">true</dependency>
 					</dependencies>
 				</setting>
 			</group>

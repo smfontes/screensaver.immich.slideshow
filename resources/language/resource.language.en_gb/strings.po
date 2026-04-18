@@ -184,9 +184,17 @@ msgid "API Key may be invalid."
 msgstr ""
 
 msgctxt "#30440"
-msgid "Album UUID"
-msgstr ""
+msgid "Use Album"
+msgstr "Use Album"
 
 msgctxt "#30441"
+msgid "Enable to use an Immich Album as the source of images displayed"
+msgstr "Enable to use an Immich Album as the source of images displayed"
+
+msgctxt "#30450"
+msgid "Album UUID"
+msgstr "Album UUID"
+
+msgctxt "#30451"
 msgid "Album UUID is the last part of the Album URL"
-msgstr ""
+msgstr "Album UUID is the last part of the Album URL"
