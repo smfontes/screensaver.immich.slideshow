@@ -14,5 +14,5 @@
 			}
 		}
 	},
-	"postCreateCommand": "pip install pytest pytest-cov mock requests pg8000 iptcinfo3 imagesize"
+	"postCreateCommand": "pip install pytest pytest-cov requests-mock mock requests pg8000 iptcinfo3 imagesize"
 }

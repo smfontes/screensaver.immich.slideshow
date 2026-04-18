@@ -1,0 +1,8 @@
+{
+    "python.testing.pytestArgs": [
+        "__tests__"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.defaultInterpreterPath": "/usr/local/bin/python"
+}
