@@ -112,6 +112,12 @@
 					<default>false</default>
 					<control type="toggle" />
 				</setting>
+				<setting id="favsOnly" label="30380" help="30381" type="boolean">
+					<description>Only display favorites</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle" />
+				</setting>
 			</group>
 		</category>
 		<category id="30500" label="30500">

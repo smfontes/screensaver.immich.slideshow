@@ -29,3 +29,4 @@ dates from previous years that are the same date as today.
 6. For panoramic slides, there is the option to pan across the slide from end to end, rather than showing the entire slide.
 7. There is the option to turn on "Ken Burns" mode for slides
 8. There is the option to randomly choose from a list of unique picture dates, rather than choosing a random picture to get a date for the image group. This allows each date to be chosen with the same probability, rather than dates with more pictures being chosen more frequently. Requires you to set up direct access to the immich database.
+9. There is the option to only display images that are marked as a favorite inside immich (by the user that the API key belongs to).

@@ -111,6 +111,14 @@ msgctxt "#30371"
 msgstr "Help for msgctxt #30360"
 msgid "Slides will be slowly panned or zoomed during display"
 
+msgctxt "#30380"
+msgid "Only display favorites"
+msgstr "Only display favorites"
+
+msgctxt "#30381"
+msgstr "Help for msgctxt #30360"
+msgid "Only show favs"
+
 msgctxt "#30500"
 msgstr ""
 msgid "Advanced"
