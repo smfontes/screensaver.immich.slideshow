@@ -31,3 +31,4 @@ dates from previous years that are the same date as today.
 8. There is the option to randomly choose from a list of unique picture dates, rather than choosing a random picture to get a date for the image group. This allows each date to be chosen with the same probability, rather than dates with more pictures being chosen more frequently. Requires you to set up direct access to the immich database.
 9. There is the option to only display images that are marked as a favorite inside immich (by the user that the API key belongs to).
 10. To only choose pictures from an album, use the album's UUID. This can be found when visiting Immich in your browser, open the album and use the last section of the URL. e.g. 48eb4f94-c847-4118-abf5-70eb3072f27a from the URL https://demo.immich.app/albums/48eb4f94-c847-4118-abf5-70eb3072f27a 
+11. Use preview for images types that are not compatible with Kodi you can use Immich's previews (jpegs) to display the images.
