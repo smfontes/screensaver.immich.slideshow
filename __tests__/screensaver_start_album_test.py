@@ -28,7 +28,7 @@ def test_api_call(screensaver):
 
 def test_image_groupings_use_album_empty_album(screensaver):
     with requests_mock.Mocker() as m:
-        m.post("http://localhost:2283/api/search/metadata", json={"assets":{"items":[],"nextPage":False}})
+        m.get("http://localhost:2283/api/albums/uuid1", json={"assets":[],"nextPage":False})
         
         grouping = screensaver._get_image_groupings()
         
@@ -36,9 +36,10 @@ def test_image_groupings_use_album_empty_album(screensaver):
     
 def test_image_groupings_use_album_next_page(screensaver):
     with requests_mock.Mocker() as m:
-        m.post("http://localhost:2283/api/search/metadata", [{"json":{"assets":{"items":[],"nextPage":True}}},{"json":{"assets":{"items":[],"nextPage":False}}}])
+        m.get("http://localhost:2283/api/albums/uuid1", [{"json":{"assets":[]}},{"json":{"assets":{"items":[],"nextPage":False}}}])
         
         grouping = screensaver._get_image_groupings()
         
     assert grouping == []
     
+    # {"id":"imageuuid1","originalPath":"/path/original/","originalMimeType":"image/jpeg","originalFileName":"imageuuid1.jpeg","localDateTime":"2012-01-01T23:12:34.56"}

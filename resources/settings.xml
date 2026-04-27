@@ -118,6 +118,12 @@
 					<default>false</default>
 					<control type="toggle" />
 				</setting>
+				<setting id="usePreview" label="30390" help="30391" type="boolean">
+					<description>Use the Immich generated Preview instead of the original asset</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle" />
+				</setting>
 			</group>
 		</category>
 		<category id="30500" label="30500">

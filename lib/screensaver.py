@@ -79,7 +79,7 @@ def log(msg, level=xbmc.LOGINFO):
         xbmc.log(str("[%s] line %5d in %s >> %s"%(ADDON.getAddonInfo('name'), int(lineno), filename, msg.__str__())), level)
 
 # Formats that can be displayed in a slideshow
-PICTURE_FORMATS = ('bmp', 'jpeg', 'jpg', 'gif', 'png', 'tiff', 'mng', 'ico', 'pcx', 'tga')
+PICTURE_FORMATS = ('bmp', 'jpeg', 'jpg', 'gif', 'png', 'tiff', 'mng', 'ico', 'pcx', 'tga', 'heic')
 
 IMMICH_TEMP_FILE_EXTENSION = '.immich-tmp'
 
@@ -149,6 +149,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self.slideshow_panorama = ADDON.getSettingBool('panorama')
         self.slideshow_kenburns = ADDON.getSettingBool('kenburns')
         self.slideshow_favsOnly = ADDON.getSettingBool('favsOnly')
+        self.slideshow_usePreview = ADDON.getSettingBool('usePreview')
         # convert float to hex value usable by the skin
         self.slideshow_dim = hex(int('%.0f' % (float(ADDON.getSettingInt('level')) * 2.55)))[2:] + 'ffffff'
         self.slideshow_dbdates = ADDON.getSettingBool('dbdates')
@@ -194,10 +195,17 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                 # iterate through all the images in the group
                 for image in image_group:
                     image_uuid = image[1]
+                    image_filename = image[2]
                     local_img_name = ADDON_USERDATA_FOLDER+image_uuid+IMMICH_TEMP_FILE_EXTENSION
-                    if not self._download_file(f'{self.slideshow_URL}/api/assets/{image_uuid}/original', local_img_name):
-                        # Download failed, go to next image
-                        continue
+                    log("Downloading image " + image_filename)
+                    if slideshow_usePreview or image_filename.lower().endswith('heic'):
+                        if not self._download_file(f'{self.slideshow_URL}/api/assets/{image_uuid}/thumbnail?size=preview', local_img_name):
+                            # Download failed, go to next image
+                            continue
+                    else:
+                        if not self._download_file(f'{self.slideshow_URL}/api/assets/{image_uuid}/original', local_img_name):
+                            # Download failed, go to next image
+                            continue
 
                     first_in_group = image == image_group[0]
                     last_in_group = image == image_group[-1]
@@ -251,38 +259,55 @@ class Screensaver(xbmcgui.WindowXMLDialog):
 
     def _get_image_groupings(self, update=False):
         if (self.slideshow_useAlbum):
-            payload = json.dumps({"size": 1000, "albumIds":self.slideshow_AlbumUUID})            
+            # Get all assets even in shared album
+            payload = json.dumps({})
+            api_call = "/api/albums/" + self.slideshow_AlbumUUID[0]
+            api_method = "GET"
         else:
             # Ask for a random date
             chosen_date = self._get_random_date()
+            api_call = "/api/search/metadata"
+            api_method = "POST"
 
-        # Get all of the pictures taken on the chosen date.
-        takenAfter = chosen_date+'T00:00:00.000Z'
-        takenBefore = chosen_date+'T23:59:59.999Z'
-        payload = json.dumps({"takenAfter": takenAfter, "takenBefore": takenBefore, "size": 1000, "isFavorite": self.slideshow_favsOnly})
+            # Get all of the pictures taken on the chosen date.
+            takenAfter = chosen_date+'T00:00:00.000Z'
+            takenBefore = chosen_date+'T23:59:59.999Z'
+            payload = json.dumps({"takenAfter": takenAfter, "takenBefore": takenBefore, "size": 1000, "isFavorite": self.slideshow_favsOnly})
         all_images_for_date=[]
         more = True
         while more:
-            response = self._api_call("POST", "/api/search/metadata", payload)
+            response = self._api_call(api_method, api_call, payload)
+            log("Response from asset collection " + str(len(response['assets'])))
+            if (self.slideshow_useAlbum):
+                items = response['assets']
+            else:
+                items = response['assets']['items']
             # Store (Datetime, id, filename, path to file)
-            for item in response['assets']['items']:
+            for item in items:
+                log("Asset mime type " + item["originalMimeType"])
                 # Make sure only displayable pictures are used - check mimetype of each item
                 if item["originalMimeType"].lower().endswith(PICTURE_FORMATS):
+                    log("Asset mime type is acceptable " + item["originalMimeType"])
                     all_images_for_date.append((item['localDateTime'],item["id"],item['originalFileName'],item['originalPath']))
-            if response['assets']['nextPage']:
-                if (self.slideshow_useAlbum):
-                    payload = json.dumps({"size": 1000, "albumIds":self.slideshow_AlbumUUID, "page": response['assets']['nextPage']})
-                else:
+                
+            if not self.slideshow_useAlbum and response['assets']['nextPage']:
+                if (not self.slideshow_useAlbum):
                     payload = json.dumps({"takenAfter": takenAfter, "takenBefore": takenBefore, "size": 1000, "page": response['assets']['nextPage']})
             else:
                 more = False
 
         if len(all_images_for_date) == 0:
+            log("No Displayable pictures")
             # No displayable pictures found for this date
             return []
-
-        #Sort by time, break ties with filename - pictures taken same second are ordered correctly
-        all_images_for_date.sort(key=lambda x: (x[0],x[2]))
+        
+        log("There is Displayable pictures " + str(len(all_images_for_date)))
+        if (self.slideshow_useAlbum):
+            # Randomize album order
+            random.shuffle(all_images_for_date)
+        else:
+            # Sort by time, break ties with filename - pictures taken same second are ordered correctly
+            all_images_for_date.sort(key=lambda x: (x[0],x[2]))
 
         # Group together pictures taken in burst mode
         group_index = 0
@@ -412,6 +437,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         iptc_info = {}
         # Get info about image from the immich API
         response = self._api_call("GET", "/api/assets/"+image[1], json.dumps({}))
+        
         exifinfo = response['exifInfo']
         self._set_prop('orientation',exifinfo['orientation'])
         # Get all of the info for this image
