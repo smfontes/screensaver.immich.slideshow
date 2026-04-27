@@ -108,8 +108,16 @@ msgid "Use 'Ken Burns' effects on slides"
 msgstr "Use 'Ken Burns' effects on slidess"
 
 msgctxt "#30371"
-msgstr "Help for msgctxt #30360"
+msgstr "Help for msgctxt #30370"
 msgid "Slides will be slowly panned or zoomed during display"
+
+msgctxt "#30390"
+msgid "Use preview"
+msgstr "Use preview"
+
+msgctxt "#30391"
+msgstr "Help for msgctxt #30390"
+msgid "Use the Immich generated Preview instead of the original image, helpful for image formats incompatible with Kodi"
 
 msgctxt "#30500"
 msgstr ""

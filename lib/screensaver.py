@@ -79,7 +79,7 @@ def log(msg, level=xbmc.LOGINFO):
         xbmc.log(str("[%s] line %5d in %s >> %s"%(ADDON.getAddonInfo('name'), int(lineno), filename, msg.__str__())), level)
 
 # Formats that can be displayed in a slideshow
-PICTURE_FORMATS = ('bmp', 'jpeg', 'jpg', 'gif', 'png', 'tiff', 'mng', 'ico', 'pcx', 'tga')
+PICTURE_FORMATS = ('bmp', 'jpeg', 'jpg', 'gif', 'png', 'tiff', 'mng', 'ico', 'pcx', 'tga', 'heic')
 
 IMMICH_TEMP_FILE_EXTENSION = '.immich-tmp'
 
@@ -144,6 +144,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self.slideshow_burst = ADDON.getSettingBool('burst')
         self.slideshow_panorama = ADDON.getSettingBool('panorama')
         self.slideshow_kenburns = ADDON.getSettingBool('kenburns')
+        self.slideshow_usePreview = ADDON.getSettingBool('usePreview')
         # convert float to hex value usable by the skin
         self.slideshow_dim = hex(int('%.0f' % (float(ADDON.getSettingInt('level')) * 2.55)))[2:] + 'ffffff'
         self.slideshow_dbdates = ADDON.getSettingBool('dbdates')
@@ -189,10 +190,16 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                 # iterate through all the images in the group
                 for image in image_group:
                     image_uuid = image[1]
+                    image_filename = image[2]
                     local_img_name = ADDON_USERDATA_FOLDER+image_uuid+IMMICH_TEMP_FILE_EXTENSION
-                    if not self._download_file(f'{self.slideshow_URL}/api/assets/{image_uuid}/original', local_img_name):
-                        # Download failed, go to next image
-                        continue
+                    if slideshow_usePreview or image_filename.lower().endswith('heic'):
+                        if not self._download_file(f'{self.slideshow_URL}/api/assets/{image_uuid}/thumbnail?size=preview', local_img_name):
+                            # Download failed, go to next image
+                            continue
+                    else:
+                        if not self._download_file(f'{self.slideshow_URL}/api/assets/{image_uuid}/original', local_img_name):
+                            # Download failed, go to next image
+                            continue
 
                     first_in_group = image == image_group[0]
                     last_in_group = image == image_group[-1]
@@ -270,7 +277,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
             # No displayable pictures found for this date
             return []
 
-        #Sort by time, break ties with filename - pictures taken same second are ordered correctly
+        # Sort by time, break ties with filename - pictures taken same second are ordered correctly
         all_images_for_date.sort(key=lambda x: (x[0],x[2]))
 
         # Group together pictures taken in burst mode
