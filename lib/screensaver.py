@@ -68,6 +68,7 @@ logging.getLogger("iptcinfo").setLevel(logging.ERROR)
 sys.path.insert(0, os.path.join(sys.path[0], 'modules'))
 import pg8000.dbapi # For postgressql database access
 import imagesize
+import re
 
 ADDON = xbmcaddon.Addon()
 ADDON_ID = ADDON.getAddonInfo('id')
@@ -198,7 +199,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                     image_filename = image[2]
                     local_img_name = ADDON_USERDATA_FOLDER+image_uuid+IMMICH_TEMP_FILE_EXTENSION
                     log("Downloading image " + image_filename)
-                    if slideshow_usePreview or image_filename.lower().endswith('heic'):
+                    if self.slideshow_usePreview or image_filename.lower().endswith('heic'):
                         if not self._download_file(f'{self.slideshow_URL}/api/assets/{image_uuid}/thumbnail?size=preview', local_img_name):
                             # Download failed, go to next image
                             continue
@@ -315,13 +316,13 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         image_groupings=[[all_images_for_date[0]]]
         # Get date and time with milliseconds, but without time zone
         image_datetime = all_images_for_date[0][0][:23]
-        prev_image_date_object = datetime.fromtimestamp(time.mktime(time.strptime(image_datetime, '%Y-%m-%dT%H:%M:%S.%f')))
+        prev_image_date_object = datetime.fromtimestamp(time.mktime(self._parse_flexible_time(image_datetime)))
         # Go through the rest of the images
         image_index = 1
         while image_index < len(all_images_for_date):
             # Get date and time with milliseconds, but without time zone
             image_datetime = all_images_for_date[image_index][0][:23]
-            this_image_date_object = datetime.fromtimestamp(time.mktime(time.strptime(image_datetime, '%Y-%m-%dT%H:%M:%S.%f')))
+            this_image_date_object = datetime.fromtimestamp(time.mktime(self._parse_flexible_time(image_datetime)))
             # Calculate difference between when this picture was taken and when the last picture was taken
             datediff = this_image_date_object - prev_image_date_object
             if datediff.total_seconds() <= 2:
@@ -348,6 +349,22 @@ class Screensaver(xbmcgui.WindowXMLDialog):
             if self.slideshow_offset_adjustment != 0:
                 offset = self.slideshow_offset_adjustment
             return image_groupings[offset:offset+self.slideshow_limit]
+
+    def _parse_flexible_time(self, time_string):
+        """
+        Cleans the time string by removing any characters after the seconds
+        """
+        print("Original time " + time_string)
+        cleaned_time = re.match(r'^(.*)(\:\d\d)', time_string)
+        
+        if cleaned_time:
+            # Reconstruct the reliable part: YYYY-MM-DDTHH:MM:SS
+            cleaned_string = f"{cleaned_time.group(1)}{cleaned_time.group(2)}"
+            print("Cleaned " + cleaned_string)
+            # Use strptime on the guaranteed standard format
+            return time.strptime(cleaned_string, '%Y-%m-%dT%H:%M:%S')
+        else:
+            raise ValueError("Invalid date format provided.")
 
     def _get_random_date(self):
         if (self.slideshow_dbdates):
