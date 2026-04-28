@@ -67,7 +67,7 @@ jobs:
         id: check_version
         run: |
           # Extract current version from addon.xml
-          CURRENT_VERSION=$(grep -oP '(?<=version\=)[^"]+' addon.xml)
+          CURRENT_VERSION=$(grep -oP '(?<=name="Immich Slideshow" version\=")[^"]+' addon.xml)
 
           echo "current_version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
           echo "tag=v${CURRENT_VERSION}" >> $GITHUB_OUTPUT
