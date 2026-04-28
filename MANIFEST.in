@@ -18,3 +18,7 @@ prune .github
 prune .vscode
 prune conftest.py
 prune build_zip.py
+prune MANIFEST.in
+prune htmlcov
+prune .coverage
+prune upload/

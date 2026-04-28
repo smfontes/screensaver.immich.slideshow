@@ -1,0 +1,85 @@
+name: Build and Release Kodi Addon
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install pytest pytest-cov requests-mock mock requests pg8000 iptcinfo3 imagesize
+
+      - name: Run Tests
+        run: |
+          pytest __tests__/ -v --cov=lib/ --cov-report=html
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-reports
+          path: |
+            **/htmlcov/**
+
+  build-and-release:
+    name: Build and Release
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate Addon Zip
+        run: |
+          python build_zip.py
+          ls -lh addon.zip
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kodi-addon-${{ github.sha }}
+          path: addon.zip
+
+      - name: Get Version
+        id: check_version
+        run: |
+          # Extract current version from addon.xml
+          CURRENT_VERSION=$(grep -oP '(?<=version\=)[^"]+' addon.xml)
+
+          echo "current_version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${CURRENT_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.check_version.outputs.tag }}
+          name: Release v${{ steps.check_version.outputs.current_version }}
+          body: |
+            Automated release for version ${{ steps.check_version.outputs.current_version }}.
+            
+            - Tests passed ✅
+            - Addon packaged successfully ✅
+          files: addon.zip

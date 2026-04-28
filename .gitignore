@@ -3,3 +3,5 @@
 *.zip
 .coverage
 htmlcov/
+upload/
+.artifacts/
