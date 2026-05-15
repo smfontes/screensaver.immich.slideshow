@@ -1,23 +1,23 @@
 <settings version="1">
 	<section id="screensaver.immich.slideshow">
-		<category id="30000" label="30000">
+		<category id="1" label="30100" help="30101">
 			<description>Basic Settings</description>
 			<group id="1">
-				<setting id="URL" label="30100" help="30101" type="string">
+				<setting id="URL" label="30110" help="30111" type="string">
 					<description>URL</description>
 					<level>0</level>
 					<default>http://immich.local:2283</default>
-					<control type="edit" format="string"/>
+					<control type="edit" format="string" />
 				</setting>
-				<setting id="APIKey" label="30110" help="30111" type="string">
+				<setting id="APIKey" label="30120" help="30121" type="string">
 					<description>immich API Key</description>
 					<level>0</level>
 					<default>abcdefghijklmnopqrsyuvwxyz1234567890</default>
-					<control type="edit" format="string"/>
+					<control type="edit" format="string" />
 				</setting>
 			</group>
 			<group id="2">
-				<setting id="time" label="30160" help="30161" type="integer">
+				<setting id="time" label="30130" help="30131" type="integer">
 					<description>Amount of seconds to display each image</description>
 					<level>0</level>
 					<default>10</default>
@@ -28,7 +28,7 @@
 						<maximum>60</maximum>
 					</constraints>
 				</setting>
-				<setting id="limit" label="30170" help="30171" type="integer">
+				<setting id="limit" label="30140" help="30141" type="integer">
 					<description>Maximum number of pictures to display in each group</description>
 					<level>0</level>
 					<default>10</default>
@@ -39,7 +39,7 @@
 						<maximum>100</maximum>
 					</constraints>
 				</setting>
-				<setting id="level" label="30180" help="30181" type="integer">
+				<setting id="level" label="30150" help="30151" type="integer">
 					<description>Dim level</description>
 					<level>0</level>
 					<default>0</default>
@@ -53,101 +53,155 @@
 					</constraints>
 				</setting>
 			</group>
+		</category>
+		<category id="2" label="30200" help="30201">
 			<group id="3">
-				<setting id="date" label="30310" help="30311" type="boolean">
+				<setting id="date" label="30210" help="30211" type="boolean">
 					<description>Display picture date</description>
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle" />
 				</setting>
-				<setting id="tags" label="30320" help="30321" type="boolean">
+				<setting id="tags" label="30220" help="30221" type="boolean">
 					<description>Display additional picture tags</description>
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle" />
 				</setting>
-				<setting id="music" label="30330" help="30331" type="boolean">
+				<setting id="music" label="30230" help="30231" type="boolean">
 					<description>Display music info during audio playback</description>
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle" />
 				</setting>
-				<setting id="clock" label="30340" help="30341" type="boolean">
+				<setting id="clock" label="30240" help="30241" type="boolean">
 					<description>Display Clock</description>
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle" />
 				</setting>
-				<setting id="burst" label="30350" help="30351" type="boolean">
+				<setting id="burst" label="30250" help="30251" type="boolean">
 					<description>Display burst mode images more quickly</description>
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle" />
 				</setting>
-				<setting id="panorama" label="30360" help="30361" type="boolean">
+				<setting id="panorama" label="30260" help="30261" type="boolean">
 					<description>Use slide effect for panorama images</description>
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle" />
 				</setting>
-				<setting id="kenburns" label="30370" help="30371" type="boolean">
+				<setting id="kenburns" label="30270" help="30271" type="boolean">
 					<description>Use Ken Burns effects on slide</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle" />
+				</setting>
+				<setting id="favsOnly" label="30280" help="30281" type="boolean">
+					<description>Only display favorites</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle" />
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="albums">false</condition>
+						</dependency>
+					</dependencies>
+				</setting>
+				<setting id="albums" label="30290" help="30291" type="boolean">
+					<description>Use Album for screensaver pictures</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle" />
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="favsOnly">false</condition>
+						</dependency>
+					</dependencies>
+				</setting>
+				<setting id="selectalbumnames" label="30292" help="30293" type="action" parent="albums">
+					<description>Update Button</description>
+					<level>0</level>
+					<default />
+					<control type="button" format="action">
+		            	<data>RunScript(screensaver.immich.slideshow)</data>
+		        	</control>
+					<dependencies>
+						<dependency type="visible">
+							<condition operator="is" setting="albums">true</condition>
+						</dependency>
+					</dependencies>
+				</setting>
+				<setting id="albumname" label="30294" help="30295" type="boolean" parent="albums">
+					<description>Display albumname</description>
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle" />
+					<dependencies>
+						<dependency type="visible">
+							<condition operator="is" setting="albums">true</condition>
+						</dependency>
+					</dependencies>
+				</setting>
+				<setting id="usePreview" label="30296" help="30297" type="boolean">
+					<description>Use the Immich generated Preview instead of the original asset</description>
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle" />
 				</setting>
 			</group>
 		</category>
-		<category id="30500" label="30500">
-			<group id="5">
+		<category id="3" label="30300" help="30301">
+			<group id="4">
 				<description>Get dates from database</description>
-				<setting id="dbdates" label="30510" help="30511" type="boolean">
+				<setting id="dbdates" label="30310" help="30311" type="boolean">
 					<description>Get dates from database directly, instead of from API</description>
 					<level>0</level>
 					<default>false</default>
-					<control type="toggle"/>
+					<control type="toggle" />
 				</setting>
-				<setting id="dbhost" label="30520" help="30521" type="string" parent="dbdates">
+				<setting id="dbhost" label="30320" help="30321" type="string" parent="dbdates">
 					<description>Port number of the immich databsase server</description>
 					<level>1</level>
 					<default>homelab</default>
-					<control type="edit" format="string"/>
+					<control type="edit" format="string" />
 					<dependencies>
 						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
 					</dependencies>
 				</setting>
-				<setting id="dbport" label="30530" help="30531" type="integer" parent="dbdates">
+				<setting id="dbport" label="30330" help="30331" type="integer" parent="dbdates">
 					<description>Port number of the immich databsase server</description>
 					<level>1</level>
 					<default>5432</default>
-					<control type="edit" format="integer"/>
+					<control type="edit" format="integer" />
 					<dependencies>
 						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
 					</dependencies>
 				</setting>
-				<setting id="dbname" label="30540" help="30541" type="string" parent="dbdates">
+				<setting id="dbname" label="30340" help="30341" type="string" parent="dbdates">
 					<description>Name of the immich databsase</description>
 					<level>1</level>
 					<default>immich</default>
-					<control type="edit" format="string"/>
+					<control type="edit" format="string" />
 					<dependencies>
 						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
 					</dependencies>
 				</setting>
-				<setting id="dbuser" label="30550" help="30551" type="string" parent="dbdates">
+				<setting id="dbuser" label="30350" help="30351" type="string" parent="dbdates">
 					<description>Name of the immich databsase user</description>
 					<level>1</level>
 					<default>postgres</default>
-					<control type="edit" format="string"/>
+					<control type="edit" format="string" />
 					<dependencies>
 						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
 					</dependencies>
 				</setting>
-				<setting id="dbpassword" label="30560" help="30561" type="string" parent="dbdates">
+				<setting id="dbpassword" label="30360" help="30361" type="string" parent="dbdates">
 					<description>The immich databsase password</description>
 					<level>1</level>
 					<default>postgres</default>
-					<control type="edit" format="string"/>
+					<control type="edit" format="string" />
 					<dependencies>
 						<dependency type="visible" setting="dbdates" operator="is">True</dependency>
 					</dependencies>

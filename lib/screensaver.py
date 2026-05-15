@@ -24,6 +24,7 @@
 
 #     1. Some information from each picture can be displayed by the screensaver.
 #        - Image tags if they occur in the immich database or in the image file itself
+#          - Album Name
 #          - Headline
 #          - Caption
 #          - Sublocation, City, State/Province, Country
@@ -41,7 +42,13 @@
 #     6. For panoramic slides, there is the option to pan across the slide from end
 #        to end, rather than showing the entire slide.
 #     7. There is the option to turn on "Ken Burns" mode for slides
-#     8. There is the option to randomly choose from a list of unique picture dates,
+#     8. There is the option to only display images that are marked as a favorite in
+#        immich (by the user that the API key belongs to). If no images are marked
+#        as favorites, the option is ignored.
+#     9. There is the option to only show slides from selected albums.
+#    10. There is the option to use preview for image types that are not compatible 
+#        with Kodi. This uses Immich's previews (jpegs) to display the images.
+#    11. There is the option to randomly choose from a list of unique picture dates,
 #        rather than choosing a random picture to get a date for the image group.
 #        This allows each date to be chosen with the same probability, rather than
 #        dates with more pictures being chosen more frequently. Requires you to set
@@ -53,35 +60,34 @@ import xbmcaddon
 import xbmcvfs
 
 import os
-import glob
 import sys
 import random
 import time
-from datetime import datetime
 import json
-import requests
+from datetime import datetime
+from pathlib import Path
 from iptcinfo3 import IPTCInfo
 # Turn off all the warnings from IPTCInfo
 import logging
 logging.getLogger("iptcinfo").setLevel(logging.ERROR)
-
 sys.path.insert(0, os.path.join(sys.path[0], 'modules'))
-import pg8000.dbapi # For postgressql database access
 import imagesize
+
+sys.path.insert(0, os.path.join(xbmcaddon.Addon().getAddonInfo('path'), 'lib'))
+from services import ImmichAPI
+from services import DatabaseAPI
+from services import log, notify
 
 ADDON = xbmcaddon.Addon()
 ADDON_ID = ADDON.getAddonInfo('id')
-ADDON_USERDATA_FOLDER = xbmcvfs.translatePath("special://profile/addon_data/"+ADDON_ID)+'/'
-
-def log(msg, level=xbmc.LOGINFO):
-        filename = os.path.basename(sys._getframe(1).f_code.co_filename)
-        lineno  = str(sys._getframe(1).f_lineno)
-        xbmc.log(str("[%s] line %5d in %s >> %s"%(ADDON.getAddonInfo('name'), int(lineno), filename, msg.__str__())), level)
+ADDON_USERDATA_FOLDER = Path(xbmcvfs.translatePath(f"special://profile/addon_data/{ADDON_ID}"))
+IMMICH_TEMP_FILE_EXTENSION = '.immich-tmp'
+ALBUMS_FILE = ADDON_USERDATA_FOLDER / "selected_albums.json"
 
 # Formats that can be displayed in a slideshow
-PICTURE_FORMATS = ('bmp', 'jpeg', 'jpg', 'gif', 'png', 'tiff', 'mng', 'ico', 'pcx', 'tga')
-
-IMMICH_TEMP_FILE_EXTENSION = '.immich-tmp'
+PICTURE_FORMATS = ('bmp', 'jpeg', 'jpg', 'gif', 'png', 'tiff', 'mng', 'ico', 'pcx', 'tga', 'heic', 'heif')
+MAX_CONSECUTIVE_EMPTY_DATES = 25
+EXCEPTION_TYPE_NOT_HANDLED = 30940
 
 class Screensaver(xbmcgui.WindowXMLDialog):
     def __init__(self, *args, **kwargs):
@@ -91,207 +97,347 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         try:
             # Init the monitor class to catch onscreensaverdeactivated calls
             self.Monitor = MyMonitor(action = self._exit)
-            # Get addon settings
-            self._get_settings()
-            if (self.slideshow_dbdates):
-                self.IMMICHDB = pg8000.dbapi.Connection(
-                    database=self.slideshow_dbname,
-                    user=self.slideshow_dbuser,
-                    password=self.slideshow_dbpassword,
-                    host=self.slideshow_dbhost,
-                    port=self.slideshow_dbport
-                )
-                #get a list of all the distinct dates of the images
-                self.distinct_dates = self._get_distinct_dates()
-                # At the start of the show, use the first random date
-                self.distinct_date_index = 0
-
-             # Set UI Component information
+            self._get_addon_settings()
             self._set_ui_controls()
-            # Start the show
-            self.stop = False
+            self._initialize_immich()
+            self._validate_settings()
+            if (self.setting_dbdates):
+                # Asked to get unique date lists from the database, so try to get them
+                try:
+                    self.databaseAPI = DatabaseAPI(
+                        self.setting_dbname,
+                        self.setting_dbuser,
+                        self.setting_dbpassword,
+                        self.setting_dbhost,
+                        self.setting_dbport,
+                        ScreensaverAbortException,
+                        lambda: self.Monitor.abortRequested()
+                    )
+                    self._get_db_dates()
+                except Exception as e:
+                    log(f"Database access failed: {e}")
+                    log("Falling back to api access for dates")
+                    self.setting_dbdates = False
+                    self.databaseAPI.close()
+            # Done with all of the initializations
             self._start_show()
-        # Catch communication exceptions
-        except SlideshowException as se:
-            text = '[B]'+se.header+'[/B]'+'\n'+se.message+'\n'
-            for key, value in se.network_response.items():
-                text = text+key+': '+str(value)+'\n'
-            xbmc.executebuiltin("Dialog.Close(all)")
-            dialog = xbmcgui.Dialog()
-            dialog.ok(ADDON_ID, text)
+        except ScreensaverAbortException:
+            # ScreensaverAbortException thrown when the user presses a key
+            return
+        except Exception as e:
+            # Notify for other problems that cause the screensavee to fail
+            log(f"Exception type not handled: {str(e)}")
+            notify(ADDON.getLocalizedString(EXCEPTION_TYPE_NOT_HANDLED),{str(e)})
         finally:
-            # Delete any temporary image files that have been retrieved
+            # Close the Database on exit
+            if (self.setting_dbdates):
+                self.databaseAPI.close()
+            # Close the api sessions on exit
+            self.immichapi.close() 
+             # Delete any temporary image files that have been retrieved
             self._delete_temporary_files(exiting=True)
+            # Close everything
+            xbmc.executebuiltin("Dialog.Close(all)")
 
-    def _get_distinct_dates(self):
-        # Get a list of all the distinct dates of the images
-        query = ' SELECT DISTINCT DATE("fileCreatedAt") FROM asset; '
-        distinct_dates = list(self._exec_query(query))
-        # Randomize the order that the date groups will be shown
-        random.shuffle(distinct_dates)
-        return distinct_dates
-
-    def _get_settings(self):
+    def _get_addon_settings(self):
         # Read addon settings
-        self.slideshow_URL = ADDON.getSetting('URL')
-        self.slideshow_APIKey = ADDON.getSetting('APIKey')
-        self.slideshow_time = ADDON.getSettingInt('time')
-        self.slideshow_limit = ADDON.getSettingInt('limit')
-        self.slideshow_date = ADDON.getSettingBool('date')
-        self.slideshow_tags = ADDON.getSettingBool('tags')
-        self.slideshow_music = ADDON.getSettingBool('music')
-        self.slideshow_clock = ADDON.getSettingBool('clock')
-        self.slideshow_burst = ADDON.getSettingBool('burst')
-        self.slideshow_panorama = ADDON.getSettingBool('panorama')
-        self.slideshow_kenburns = ADDON.getSettingBool('kenburns')
+        self.setting_URL = ADDON.getSetting('URL')
+        self.setting_APIKey = ADDON.getSetting('APIKey')
+        self.setting_time = ADDON.getSettingInt('time')
+        self.setting_limit = ADDON.getSettingInt('limit')
+        self.setting_date = ADDON.getSettingBool('date')
+        self.setting_tags = ADDON.getSettingBool('tags')
+        self.setting_music = ADDON.getSettingBool('music')
+        self.setting_clock = ADDON.getSettingBool('clock')
+        self.setting_burst = ADDON.getSettingBool('burst')
+        self.setting_panorama = ADDON.getSettingBool('panorama')
+        self.setting_kenburns = ADDON.getSettingBool('kenburns')
         # convert float to hex value usable by the skin
-        self.slideshow_dim = hex(int('%.0f' % (float(ADDON.getSettingInt('level')) * 2.55)))[2:] + 'ffffff'
-        self.slideshow_dbdates = ADDON.getSettingBool('dbdates')
-        self.slideshow_dbhost = ADDON.getSetting('dbhost')
-        self.slideshow_dbport = ADDON.getSettingInt('dbport')
-        self.slideshow_dbname = ADDON.getSetting('dbname')
-        self.slideshow_dbuser = ADDON.getSetting('dbuser')
-        self.slideshow_dbpassword = ADDON.getSetting('dbpassword')
-        self.slideshow_offset_adjustment = 0
-
+        self.setting_dim = hex(int('%.0f' % (float(ADDON.getSettingInt('level')) * 2.55)))[2:] + 'ffffff'
+        self.setting_dbdates = ADDON.getSettingBool('dbdates')
+        self.setting_dbhost = ADDON.getSetting('dbhost')
+        self.setting_dbport = ADDON.getSettingInt('dbport')
+        self.setting_dbname = ADDON.getSetting('dbname')
+        self.setting_dbuser = ADDON.getSetting('dbuser')
+        self.setting_dbpassword = ADDON.getSetting('dbpassword')
+        self.setting_favsOnly = ADDON.getSettingBool('favsOnly')
+        self.setting_albums = ADDON.getSettingBool('albums')
+        self.setting_albumname  = ADDON.getSettingBool('albumname')
+        self.setting_usePreview = ADDON.getSettingBool('usePreview')
+        self.empty_date_count = 0
+        self.offset_adjustment = 0
+        
     def _set_ui_controls(self):
         # Get the screensaver window id
         self.winid = xbmcgui.Window(xbmcgui.getCurrentWindowDialogId())
-        # Get image controls from the xml
-        self.image_control1 = self.getControl(1)
-        self.image_control2 = self.getControl(2)
-        self.background_image1 = self.getControl(3)
-        self.background_image2 = self.getControl(4)
-        # set the dim property
-        self._set_prop('Dim', self.slideshow_dim)
-        # show music info during slideshow if enabled
-        if self.slideshow_music:
+        # Get image and background controls from the xml
+        self.image_controls = (self.getControl(1), self.getControl(2))
+        self.background_controls = (self.getControl(3), self.getControl(4))
+        # set the properties based on user settings
+        self._set_prop('Dim', self.setting_dim)
+        if self.setting_music:
             self._set_prop('Music', 'show')
-        # show clock if enabled
-        if self.slideshow_clock:
+        if self.setting_clock:
             self._set_prop('Clock', 'show')
         # Set the skin name so we can have different looks for different skins
         self._set_prop('SkinName',xbmc.getSkinDir())
 
+    def _initialize_immich(self):
+        self.immichapi = ImmichAPI(
+            self.setting_APIKey,
+            self.setting_URL,
+            ScreensaverAbortException,
+            lambda: self.Monitor.abortRequested()
+        )
+
+    def _validate_settings(self):
+        # If use albums is specified, make sure some albums were selected
+        if (self.setting_albums):
+            self.albumlist = self.load_selected_albums()
+            if self.albumlist:
+                self.albumindices = list(range(len(self.albumlist)))
+                random.shuffle(self.albumindices)
+                self.albumindex = 0
+            else:
+                # No albums were found
+                log("'Use Albums' is set but there are no albums selected. Setting value to False")
+                self.setting_albums = False
+        # If use favorites is specified, make sure some favorites exist
+        if self.setting_favsOnly:
+            args = {"size": 1, "isFavorite": True}
+            response = self.immichapi.search_random(args)
+            if len(response) == 0:
+                # No favorites were found
+                log("'Only Display Favorites' is set but there are no favorite images. Setting value to False")
+                self.setting_favsOnly = False
+    
+    def load_selected_albums(self):
+        if not ALBUMS_FILE.exists():
+            return []
+        try:
+            data = json.loads(ALBUMS_FILE.read_text(encoding="utf-8"))
+            return data.get("albums")
+        except Exception:
+            return []
+
+    def _get_db_dates(self):
+        if self.setting_albums:
+            # get a list of all the distinct dates for each album
+            self.db_album_dates = self._get_db_album_dates(self.albumlist)
+        else:
+            # get a list of all the distinct dates of the images
+            self.distinct_dates = self._get_db_distinct_dates()
+            # At the start of the show, use the first random date
+            self.distinct_date_index = 0
+
+    def _get_db_album_dates(self, albumlist):
+        # for each album query for a list of unique dates in that album
+        result = {}
+        for album in albumlist:
+            albumId = album["id"]
+            query = f"""
+                SELECT DISTINCT DATE(a."fileCreatedAt")
+                FROM album_asset aa
+                JOIN asset a ON a."id" = aa."assetId"
+                WHERE aa."albumId" = '{albumId}';
+            """
+            rows = self.databaseAPI.exec_query(query)
+            dates = [d for (d,) in rows]
+            random.shuffle(dates)
+            result[albumId] = {"date_index":0, "date_list": dates}
+        return result
+
+    def _get_db_distinct_dates(self):
+        # Get a list of all the distinct dates of the images
+        if self.setting_favsOnly:
+            # Only get dates that contain favorites so we don't pick lots of days with no pictures to display
+            query = ' SELECT DISTINCT DATE("fileCreatedAt") FROM asset WHERE "isFavorite" = TRUE; '
+            distinct_dates = list(self.databaseAPI.exec_query(query))
+            if len(distinct_dates) == 0:
+                # There were NO dates found that had favorites, so don't limit pictures to favorites only
+                self.setting_favsOnly = False
+                log("'Only Display Favorites' is set but there are no favorite images. Setting value to False")
+        if not self.setting_favsOnly:
+            query = ' SELECT DISTINCT DATE("fileCreatedAt") FROM asset; '
+            distinct_dates = list(self.databaseAPI.exec_query(query))
+        # Randomize the order that the date groups will be shown
+        random.shuffle(distinct_dates)
+        return distinct_dates
+
     def _start_show(self):
-        # start with image 1
-        current_image_control = self.image_control1
-        order = [1,2]
+        # start with first image control
+        control_index = 0
         # loop until onScreensaverDeactivated is called
-        while (not self.Monitor.abortRequested()) and (not self.stop):
-            # Get the next grouping of pictures
+        while (not self.Monitor.abortRequested()):
+            # Get a bunch of images from the same date
             image_groupings = self._get_image_groupings()
             for image_group in image_groupings:
-                # Delete any temporary image files that have been retrieved
-                self._delete_temporary_files()
-                # fastmode is true when we find pictures taken in burst mode
-                fastmode = True if (len(image_group) > 2 and self.slideshow_burst) else False
-                # iterate through all the images in the group
+                # an image_group is all pictures taken within 2 seconds of each other
+                fastmode = True if (len(image_group) > 2 and self.setting_burst) else False
                 for image in image_group:
-                    image_uuid = image[1]
-                    local_img_name = ADDON_USERDATA_FOLDER+image_uuid+IMMICH_TEMP_FILE_EXTENSION
-                    if not self._download_file(f'{self.slideshow_URL}/api/assets/{image_uuid}/original', local_img_name):
-                        # Download failed, go to next image
+                    # break if onScreensaverDeactivated is called
+                    if self.Monitor.abortRequested():
+                        raise ScreensaverAbortException
+
+                    # download the image
+                    image['local_path'] = self._get_local_filename_for_image(image)
+                    if not self.immichapi.download_file(image['id'], image['local_path'], image['originalMimeType'], self.setting_usePreview):
+                        #download failed, go to next image
                         continue
 
-                    first_in_group = image == image_group[0]
-                    last_in_group = image == image_group[-1]
+                    # logic to skip transitions when in fastmode
+                    first_in_group = image is image_group[0]
+                    last_in_group  = image is image_group[-1]
                     if not fastmode or (fastmode and (first_in_group or last_in_group)):
                         # Add background image to gui
-                        if order[0] == 1:
-                            self.background_image1.setImage(local_img_name, False)
-                        else:
-                            self.background_image2.setImage(local_img_name, False)
-                        # add fade anim to background images
-                        self._set_prop('Fade%d' % order[0], '0')
-                        self._set_prop('Fade%d' % order[1], '1')
-                        # Add picture information to slide
-                        # Only show label transition animation when changing to a new date
-                        self._set_info_fields(image,transition=(image_group == image_groupings[0])) 
+                        self.background_controls[control_index].setImage(image['local_path'], False)
+                        self._set_prop('Background', str(control_index))
+                        # assign all of the requested and available info to the image
+                        info = self._get_image_info(image)
+                        image.update(info)
+                        # Add image info to slide
+                        self._set_info_fields(image, control_index)
+                        self._set_prop('Info', str(control_index))
 
-                    # Show the slide
-                    current_image_control.setImage(local_img_name, False)
-                    animation,timetowait = self.get_animimation(local_img_name, fastmode, first_in_group, last_in_group)
-                    current_image_control.setAnimations(animation)
-
-                    if fastmode:
-                        timetowait = 0
-
-                    # have shown images, so turn off splash screen
+                    # Show the slide with animations
+                    self.image_controls[control_index].setImage(image['local_path'], False)
+                    timetowait, animation = self.get_animimation(image, fastmode, first_in_group, last_in_group)
+                    self.image_controls[control_index].setAnimations(animation)
+                    # About to show images, so turn off splash screen
                     self._set_prop('Splash', 'hide')
 
                     # display the image for the specified amount of time
-                    count = timetowait
-                    while (not self.Monitor.abortRequested()) and (not self.stop) and count > 0:
-                        count -= 1000
-                        xbmc.sleep(1000)
+                    if self.Monitor.waitForAbort(timetowait / 1000):
+                        raise ScreensaverAbortException
 
-                    # define next image
-                    if current_image_control == self.image_control1:
-                        current_image_control = self.image_control2
-                        order = [2,1]
-                    else:
-                        current_image_control = self.image_control1
-                        order = [1,2]
+                    # swap to next image control
+                    control_index = 0 if control_index == 1 else 1
 
-                    # break out of the 'images in image_group loop' if onScreensaverDeactivated is called
-                    if  self.stop or self.Monitor.abortRequested():
-                        self.stop = True
-                        break
-
-                # break out of the 'image_group in image_groupings' loop if onScreensaverDeactivated is called
-                if  self.stop or self.Monitor.abortRequested():
-                    self.stop = True
-                    break
-
-    def _get_image_groupings(self, update=False):
-        # Ask for a random date
-        chosen_date = self._get_random_date()
-
-        # Get all of the pictures taken on the chosen date.
-        takenAfter = chosen_date+'T00:00:00.000Z'
-        takenBefore = chosen_date+'T23:59:59.999Z'
-        payload = json.dumps({"takenAfter": takenAfter, "takenBefore": takenBefore, "size": 1000})
-        all_images_for_date=[]
-        more = True
-        while more:
-            response = self._api_call("POST", "/api/search/metadata", payload)
-            # Store (Datetime, id, filename, path to file)
-            for item in response['assets']['items']:
-                # Make sure only displayable pictures are used - check mimetype of each item
-                if item["originalMimeType"].lower().endswith(PICTURE_FORMATS):
-                    all_images_for_date.append((item['localDateTime'],item["id"],item['originalFileName'],item['originalPath']))
-            if response['assets']['nextPage']:
-                payload = json.dumps({"takenAfter": takenAfter, "takenBefore": takenBefore, "size": 1000, "page": response['assets']['nextPage']})
-            else:
-                more = False
-
+    def _get_image_groupings(self, update=False):    
+        all_images_for_date = self._fetch_images_for_date()
         if len(all_images_for_date) == 0:
             # No displayable pictures found for this date
+            self.empty_date_count +=1
+            if self.empty_date_count > MAX_CONSECUTIVE_EMPTY_DATES:
+                log(f"Made {MAX_CONSECUTIVE_EMPTY_DATES} date attempts with no images. Aborting")
+                raise ScreensaverAbortException
             return []
+        self.empty_date_count = 0
+        image_groupings = self._group_images(all_images_for_date)
+        # Return the requested number of pictures
+        if self.setting_limit == 0 or (len(image_groupings) <= self.setting_limit):
+            # Fewer picture for this date than max allowed, so display them all
+            return image_groupings
+        else:
+            # More pictures on this date than the max allowed
+            # Set a random offset into the list of pictures so we don't always start wtih the earliest picture on the date.
+            offset = random.randrange(len(image_groupings) - self.setting_limit)
+            if self.offset_adjustment != 0:
+                offset = self.offset_adjustment
+            return image_groupings[offset:offset+self.setting_limit]
 
-        #Sort by time, break ties with filename - pictures taken same second are ordered correctly
-        all_images_for_date.sort(key=lambda x: (x[0],x[2]))
+    def _fetch_images_for_date(self):
+        args = {}
+        if self.setting_favsOnly:
+            args["isFavorite"] = True
+        if self.setting_albums:
+            self.current_album = self.albumlist[self.albumindices[self.albumindex]]
+            self.albumindex += 1
+            if self.albumindex == len(self.albumindices):
+                random.shuffle(self.albumindices)
+                self.albumindex = 0
+            args["albumIds"] = [self.current_album["id"]]
+        date = self._get_random_date()
+        args["takenAfter"] = f"{date}T00:00:00.000Z"
+        args["takenBefore"] = f"{date}T23:59:59.999Z"
+        args["withExif"] = "true"
+        all_images_for_date = []
+        for page in self.immichapi.search_metadata(args):
+            for item in page:
+                if item["originalMimeType"].lower().endswith(PICTURE_FORMATS):
+                    exifinfo = item['exifInfo']
+                    image = {
+                        'localDateTime': item['localDateTime'],
+                        'id': item['id'],
+                        'originalFileName': item['originalFileName'],
+                        'originalMimeType': item['originalMimeType'],
+                        'Orientation': exifinfo['orientation']
+                    }
+                    if self.setting_tags:
+                        image['Country'] = exifinfo['country']
+                        image['State'] = exifinfo['state']
+                        image['City'] = exifinfo['city']
+                        image['Headline'] = exifinfo['description']
+                    all_images_for_date.append(image)
+        return all_images_for_date
 
-        # Group together pictures taken in burst mode
+    def _get_random_date(self):
+        if (self.setting_dbdates):
+            # Get some random date that at least one of the pictures was taken (each date is the single element of a list)
+            if (self.setting_albums):
+                # Find a date in the current album
+                album_dates = self.db_album_dates[self.current_album["id"]]
+                # Use the next date in the list of distinct dates for the selected album
+                chosen_date = album_dates["date_list"][album_dates["date_index"]]
+                # Next time choose a new date
+                album_dates["date_index"] += 1
+                if album_dates["date_index"] == len(album_dates["date_list"]):
+                    # All of the dates have been used for the album, so start over with a shuffled list of all of the dates
+                    album_dates["date_index"] = 0
+                    random.shuffle(album_dates["date_list"])
+            else:
+                # Use the next date in the list of distinct dates
+                chosen_date = self.distinct_dates[self.distinct_date_index][0]
+                # Next time choose a new date
+                self.distinct_date_index += 1
+                if self.distinct_date_index == len(self.distinct_dates):
+                    # All of the dates have been used, so start over with a shuffled list of all of the dates
+                    random.shuffle(self.distinct_dates)
+                    self.distinct_date_index = 0
+        else:
+            # Not using distinct dates from the database, so just get date from one random picture
+            args={"size": 1}
+            if self.setting_favsOnly:
+                args.update({"isFavorite": True})
+            if self.setting_albums:
+                args.update({"albumIds":  [self.current_album["id"]]})
+            response = self.immichapi.search_random(args)
+            chosen_date = response[0]['localDateTime'][:10]
+        # chosen_date = "2022-06-21"
+        # chosen_date = "2017-08-03"; self.offset_adjustment = 15 # burst
+        # chosen_date = "2001-06-02"
+        # chosen_date = "2017-06-08"
+        # chosen_date = "2013-08-01"; self.offset_adjustment = 71 # burst
+        # chosen_date = "2021-05-07" # sublocation
+        # chosen_date = "2021-04-11" # headline
+        # chosen_date = "2010-10-03" # landscape and portrait mixed
+        # chosen_date = "2025-12-17"; self.offset_adjustment = 43 # horizontal panorama
+        # chosen_date = "2025-12-16"; self.offset_adjustment = 113 # vertical panorama
+        # chosen_date = "2026-04-08"; self.offset_adjustment = 3 # cascais lighthouse
+        # chosen_date = "2023-12-13" # heic
+        # chosen_date = "2026-05-15" # heif
+        # log(f"chosen date: {chosen_date}")
+        return chosen_date
+
+    def _group_images(self, all_images_for_date):
+        # Sort by time, break ties with filename - pictures taken same second are ordered correctly
+        all_images_for_date.sort(key=lambda x: (x["localDateTime"], x["originalFileName"]))
         group_index = 0
         # Put the first picture in the first group
         image_groupings=[[all_images_for_date[0]]]
         # Get date and time with milliseconds, but without time zone
-        image_datetime = all_images_for_date[0][0][:23]
-        prev_image_date_object = datetime.fromtimestamp(time.mktime(time.strptime(image_datetime, '%Y-%m-%dT%H:%M:%S.%f')))
+        prev_image_date_object = datetime.fromisoformat(all_images_for_date[0]['localDateTime'].rstrip("Z"))
         # Go through the rest of the images
         image_index = 1
         while image_index < len(all_images_for_date):
             # Get date and time with milliseconds, but without time zone
-            image_datetime = all_images_for_date[image_index][0][:23]
-            this_image_date_object = datetime.fromtimestamp(time.mktime(time.strptime(image_datetime, '%Y-%m-%dT%H:%M:%S.%f')))
+            this_image_date_object = datetime.fromisoformat(all_images_for_date[image_index]['localDateTime'].rstrip("Z"))
             # Calculate difference between when this picture was taken and when the last picture was taken
             datediff = this_image_date_object - prev_image_date_object
             if datediff.total_seconds() <= 2:
                 # image within two seconds of previous image go in same group
                 image_groupings[group_index].append(all_images_for_date[image_index])
-                if not self.slideshow_burst:
+                if not self.setting_burst:
                     # Only store the first and last images if not showing them in burst mode
                     if len(image_groupings[group_index]) > 2:
                         image_groupings[group_index].pop(1)
@@ -300,288 +446,130 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                 image_groupings.append([all_images_for_date[image_index]])
             prev_image_date_object = this_image_date_object
             image_index+=1
-
-        # Return the requested number of pictures
-        if self.slideshow_limit == 0 or (len(image_groupings) <= self.slideshow_limit):
-            # Fewer picture for this date than max allowed, so display them all
-            return image_groupings
-        else:
-            # More pictures on this date than the max allowed
-            # Set a random offset into the list of pictures so we don't always start wtih the earliest picture on the date.
-            offset = random.randrange(len(image_groupings) - self.slideshow_limit)
-            if self.slideshow_offset_adjustment != 0:
-                offset = self.slideshow_offset_adjustment
-            return image_groupings[offset:offset+self.slideshow_limit]
-
-    def _get_random_date(self):
-        if (self.slideshow_dbdates):
-            # Use the next date in the list of distinct dates, then get all of the pictures taken on the same date.
-            # Set a random offset into the list of pictures so we don't always start wtih the earliest picture on the date.
-
-            # Get some random date that at least one of the pictures was taken (each date is the single element of a list)
-            chosen_date = self.distinct_dates[self.distinct_date_index][0]
-            # Next time choose a new date
-            self.distinct_date_index += 1
-            if self.distinct_date_index == len(self.distinct_dates):
-                # All of the dates have been used, so start over with a new list of all of the dates
-                random.shuffle(self.distinct_dates)
-                self.distinct_date_index = 0
-        else:
-            # Just get one random picture
-            response = self._api_call("POST", "/api/search/random", json.dumps({"size": 1}))
-            # Get the date that the picture was taken
-            chosen_date = response[0]['localDateTime'][:10]
-
-        # chosen_date = "2022-06-21"
-        # chosen_date = "2017-08-03"; self.slideshow_offset_adjustment = 15 # burst
-        # chosen_date = "2001-06-02"
-        # chosen_date = "2017-06-08"
-        # chosen_date = "2013-08-01"; self.slideshow_offset_adjustment = 71 # burst
-        # chosen_date = "2021-05-07" # sublocation
-        # chosen_date = "2021-04-11" # headline
-        # chosen_date = "2010-10-03" # landscape and portrait mixed
-        # chosen_date = "2025-12-17"; self.slideshow_offset_adjustment = 43 # horizontal panorama
-        # chosen_date = "2025-12-16"; self.slideshow_offset_adjustment = 113 # vertical panorama
-        return chosen_date
-
+        return image_groupings
+    
     def _get_local_filename_for_image(self, image):
         # We store the downloaded images in the addon's userdata folder
-        return ADDON_USERDATA_FOLDER+image[1]+IMMICH_TEMP_FILE_EXTENSION
-
-    def _set_info_fields(self, image, transition=True):
-        # Get info about the image
-        info = self._get_image_info(image)
-
-        # Transition between two sets of info if requested
-        if transition:
-            self._set_prop('FadeoutLabels' ,'1')
-            xbmc.sleep(750)
-        # Assign whatever info was found into the correct labels
-        if 'Headline' in info:
-            self._set_prop('Headline',info['Headline'])
-        else:
-            self._clear_prop('Headline')
-        if 'Caption' in info:
-            self._set_prop('Caption',info['Caption'])
-        else:
-            self._clear_prop('Caption')
-        if 'Sublocation' in info:
-            self._set_prop('Sublocation',info['Sublocation'])
-        else:
-            self._clear_prop('Sublocation')
-        if 'City' in info:
-            self._set_prop('City',info['City'])
-        else:
-            self._clear_prop('City')
-        if 'State' in info:
-            self._set_prop('State',info['State'])
-        else:
-            self._clear_prop('State')
-        if 'Country' in info:
-            self._set_prop('Country',info['Country'])
-        else:
-            self._clear_prop('Country')
-        if 'Date' in info:
-            self._set_prop('Date',info['Date'])
-        else:
-            self._clear_prop('Date')
-        if 'Time' in info:
-            self._set_prop('Time',info['Time'])
-        else:
-            self._clear_prop('Time')
-
-        # Complete the transition to the new set of info
-        if transition:
-            self._set_prop('FadeinLabels', '1')
-            xbmc.sleep(750)
-        self._set_prop('FadeoutLabels', '0')
+        return str(ADDON_USERDATA_FOLDER / (image['id'] + IMMICH_TEMP_FILE_EXTENSION))
 
     def _get_image_info(self, image):
-        immich_info = {}
+        info = {}
         iptc_info = {}
-        # Get info about image from the immich API
-        response = self._api_call("GET", "/api/assets/"+image[1], json.dumps({}))
-        exifinfo = response['exifInfo']
-        self._set_prop('orientation',exifinfo['orientation'])
-        # Get all of the info for this image
-        if self.slideshow_date:
-            # Get the date and time the image was taken
-            imgdatetime = image[0][:18]
-            immich_info['Date'] = time.strftime('%A %B %e, %Y',time.strptime(imgdatetime, '%Y-%m-%dT%H:%M:%S'))
-            immich_info['Time'] = time.strftime('%I:%M %p',time.strptime(imgdatetime, '%Y-%m-%dT%H:%M:%S'))
-        if self.slideshow_tags:
-            immich_info['Country'] = exifinfo['country']
-            immich_info['State'] = exifinfo['state']
-            immich_info['City'] = exifinfo['city']
-            immich_info['Headline'] = exifinfo['description']
+        # Get extra info for this image
+        if self.setting_date:
+            imgdatetime = image['localDateTime'][:18]
+            info['Date'] = time.strftime('%A %B %e, %Y',time.strptime(imgdatetime, '%Y-%m-%dT%H:%M:%S'))
+            info['Time'] = time.strftime('%I:%M %p',time.strptime(imgdatetime, '%Y-%m-%dT%H:%M:%S'))
+        if self.setting_albums and self.setting_albumname:
+            info['AlbumName'] = self.current_album['albumName']
+        if self.setting_tags:
             # Get more info from the actual file.
             iptc_info = self._get_iptcinfo(self._get_local_filename_for_image(image))
-        # Info in file (iptc_info) overrides info from immich (immich_info)
-        image_info = {**immich_info, **iptc_info}
+        image_info = {**info, **iptc_info}
         return image_info
 
     def _get_iptcinfo(self, filename):
-        # Retrieve info directly from the file
-        iptc_info = {}
+        fields = {
+            "Headline": "headline",
+            "Caption": "caption/abstract",
+            "Sublocation": "sub-location",
+            "City": "city",
+            "State": "province/state",
+            "Country": "country/primary location name",
+        }
+        iptcinfo = {}
         try:
             iptc = IPTCInfo(filename)
-            if iptc['headline']:
-                iptc_info['Headline'] = iptc['headline']
-            if iptc['caption/abstract']:
-                iptc_info['Caption'] = iptc['caption/abstract']
-            if iptc['sub-location']:
-                iptc_info['Sublocation'] = iptc['sub-location']
-            if iptc['city']:
-                iptc_info['City'] = iptc['city']
-            if iptc['province/state']:
-                iptc_info['State'] = iptc['province/state']
-            if iptc['country/primary location name']:
-                iptc_info['Country'] = iptc['country/primary location name']
-        except:
-            pass
-        return iptc_info
+            for key, tag in fields.items():
+                if not iptc[tag]:
+                    continue
+                raw = bytes(iptc[tag])
+                try:
+                    iptcinfo[key] = raw.decode("utf-8")
+                except UnicodeDecodeError:
+                    iptcinfo[key] = raw.decode("latin-1", errors="replace")
+            return iptcinfo
+        except Exception:
+            return iptcinfo
 
-    def get_animimation(self, img_path, fastmode, first_in_group, last_in_group):
+    def _set_info_fields(self, image, order):
+        # Assign whatever info was found into the correct labels
+        for prop in ('AlbumName', 'Headline', 'Caption', 'Sublocation', 'City', 'State', 'Country', 'Date', 'Time'):
+            if prop in image:
+                self._set_prop(prop+str(order),image[prop])
+            else: 
+                self._clear_prop(prop+str(order))
+
+    def get_animimation(self, image, fastmode, first_in_group, last_in_group):
         if fastmode and not (first_in_group or last_in_group):
-            return [], 0
-
-        show_ms = int(self.slideshow_time * 1000)
-        fade_ms = min(2000, show_ms*0.2)
-        adjust_ms = fade_ms * 2 if last_in_group else fade_ms
-
-        FADEIN_EFFECT = ['conditional', f'effect=fade start=0 end=100 time={fade_ms} condition=true']
-        FADEOUT_EFFECT = ['conditional', f'effect=fade start=100 end=0 time={fade_ms} delay={show_ms+fade_ms+adjust_ms} condition=true']
-        
+            return 30, []
+        FADE_FRACTION = 0.2
+        EXTRA_TIME_FRACTION = 0.25
+        slideshow_ms = self.setting_time * 1000
+        fade_ms = min(slideshow_ms * FADE_FRACTION,2000)
         if fastmode:
+            FADEIN_EFFECT =  ['conditional', f'effect=fade start=0 end=100 time={fade_ms} reversible=false condition=true']
+            FADEOUT_EFFECT = ['conditional', f'effect=fade start=100 end=0 time={fade_ms*2} delay={slideshow_ms+(2*fade_ms)} reversible=false condition=true']
             if first_in_group:
-                return [FADEIN_EFFECT],max(fade_ms,int(show_ms / 4.0))
+                return slideshow_ms / 2,[FADEIN_EFFECT]
             else:
-                return [FADEOUT_EFFECT],max(fade_ms,int(show_ms / 4.0))
+                return slideshow_ms,[FADEOUT_EFFECT]
 
         screen_w = self.winid.getWidth()
         screen_h = self.winid.getHeight()
-        center_x =  (screen_w / 2.0)
-        center_y =  (screen_h / 2.0)
-        if (self.slideshow_panorama):
-            # Image and screen dimensions
-            img_w, img_h = imagesize.get(img_path)
-            PANORAMA_RATIO = 1.85
-            aspect_ratio = max(img_w, img_h) / min(img_w, img_h)
-            if aspect_ratio >= PANORAMA_RATIO:
-                orientation = self.winid.getProperty('Screensaver.orientation')
-                if img_w > img_h and orientation not in ("8", "6"): # horizontal panorama
-                    # Find scale factor to make image height fit the screen
-                    baseline_h = screen_w * (img_h / img_w)
-                    scale = (screen_h / baseline_h)
-                    # Get width of zoomed image so we know how much to pan
-                    zoomed_w = screen_w * scale
-                    # Figure out how much of the image is off of the screen when centered
-                    slide_x = (screen_w * (screen_w - zoomed_w)) / zoomed_w
-                    slide_y = 0
-                    zoom_y = center_y
-                    zoom_x = 0
-                    # Increase the time for the slide so animation not too fast
-                    total_ms = show_ms * (zoomed_w / screen_w)
-                    adjust_ms = (total_ms - show_ms)*(screen_w/zoomed_w)
-                else: # vertical panorama
-                    # Find scale factor to make image width fit the screen
-                    baseline_w = screen_h * (img_h / img_w) 
-                    scale = (screen_w / baseline_w)
-                    # Get height of zoomed image so we know how much to pan
-                    zoomed_h = screen_h * scale
-                    # Figure out how much of the image is off of the screen when centered
-                    slide_y = (screen_h * (zoomed_h - screen_h)) / zoomed_h
-                    slide_x = 0
-                    zoom_y = screen_h
-                    zoom_x = center_x
-                    # Increase the time for the slide so animation not too fast
-                    total_ms = show_ms * (zoomed_h / screen_h)
-                    adjust_ms = (total_ms - show_ms)*(screen_h/zoomed_h)
-                # Zoom so that image fits the screen
-                zoom = scale * 100
-                zoom_ms = total_ms
-                slide_start = fade_ms
-                slide_ms  = total_ms + adjust_ms
-                fadeout_start = slide_ms
-                duration = total_ms - adjust_ms
-                animation = [
-                    FADEIN_EFFECT,
-                    ["conditional", f"condition=true effect=zoom  time={zoom_ms}  start={zoom} end={zoom}              center={zoom_x},{zoom_y}"],
-                    ["conditional", f"condition=true effect=slide time={slide_ms} start=0,0    end={slide_x},{slide_y} delay={slide_start}"],
-                    ["conditional", f"condition=true effect=fade  time={fade_ms}  start=100    end=0                   delay={fadeout_start}"]
-                ]
-                return animation,duration
-        if self.slideshow_kenburns:
-            zoom = 130 + self.slideshow_time
-            zoom_x = center_x + (center_x * random.randint(-1,1))
-            zoom_y = center_y + (center_y * random.randint(-1,1))
-            zoom_ms = show_ms + fade_ms + fade_ms + adjust_ms
-            animation = [
-                FADEIN_EFFECT,
-                ["conditional", f"condition=true effect=zoom  time={zoom_ms}  start=100 end={zoom} center={zoom_x},{zoom_y}"],
-                FADEOUT_EFFECT
-            ]
-            return animation,show_ms
-        return [FADEIN_EFFECT,FADEOUT_EFFECT],show_ms
+        img_w, img_h = imagesize.get(image['local_path'])
+        aspect_ratio = max(img_w, img_h) / min(img_w, img_h)
+        PANORAMA_RATIO = 1.85
+        if (self.setting_panorama and aspect_ratio >= PANORAMA_RATIO):
+            orientation = image['Orientation']
+            if img_w > img_h and orientation not in ("8", "6"):            # horizontal panorama
+                baseline_h = screen_w * (img_h / img_w)                    #   scale factor to make image height fit the screen
+                scale_start = scale_end = (screen_h / baseline_h) * 100.0  
+                scaled_w = screen_w * (scale_start / 100.0)                #   width of scaled image
+                slide_x = ((scaled_w / 2.0) - (screen_w / 2.0))            #   amount to shift to bring left side on screen
+                slide_y = 0                                                #   don't shift in y direction
+                total_ms = int(slideshow_ms * (scaled_w / screen_w))       #   increase the time so rate is the same
+                duration_ms = total_ms - ((slideshow_ms * EXTRA_TIME_FRACTION) * (scaled_w / screen_w))      #   fudge factor to make fading work
+            else:                                                          # verticalal panorama
+                baseline_w = screen_h * (img_h / img_w)                    #   scale factor to make image width fit the screen
+                scale_start = scale_end = (screen_w / baseline_w) * 100.0
+                scaled_h = screen_h * (scale_start / 100.0)                #   height of scaled image
+                slide_y = -((scaled_h / 2.0) - (screen_h / 2.0))           #   amount to shift to bring bottom on screen
+                slide_x = 0                                                #   dont shift in the x direction
+                total_ms = int(slideshow_ms * (scaled_h / screen_h))       #   increase the time so rate is the same
+                duration_ms = total_ms - ((slideshow_ms * EXTRA_TIME_FRACTION) * (scaled_h / screen_h))      #   fudge factor to make fading work
+        else: # Not a panorama slide
+            if self.setting_kenburns:
+                base_scale = 115 + self.setting_time
+                scale_h = screen_h * (base_scale / 100.0)
+                scale_w = screen_w * (base_scale / 100.0)
+                slide_x = random.randint(-1,1) * ((scale_w - screen_w) / 2.0)
+                slide_y = random.randint(-1,1) * ((scale_h - screen_h) / 2.0)
+                scale_start = base_scale if (slide_x,slide_y) != (0,0) else 100 
+                scale_end = base_scale * 1.2 if (slide_x,slide_y) != (0,0) else base_scale * 1.3
+            else: # Just crossfade
+                slide_x = slide_y = 0
+                scale_start = scale_end = 100
+            duration_ms = slideshow_ms
+            total_ms = slideshow_ms + (slideshow_ms * EXTRA_TIME_FRACTION)
+
+        zoom_ms = slide_ms = fadeout_start = total_ms + (slideshow_ms * FADE_FRACTION)
+        animation = [
+                        ["conditional", f"effect=fade  time={fade_ms}  start=0 end=100                                     condition=true"],
+                        ["conditional", f"effect=slide time={slide_ms} start={slide_x},{slide_y} end={-slide_x},{-slide_y} condition=true"],
+                        ["conditional", f"effect=zoom  time={zoom_ms}  start={scale_start} end={scale_end} center=auto     condition=true"],
+                        ["conditional", f"effect=fade  time={fade_ms}  start=100 end=0 delay={fadeout_start}               condition=true"],
+                    ]
+        return duration_ms, animation
 
     # Utility functions
-    def _exec_query(self,query):
-        cursor = self.IMMICHDB.cursor()
-        cursor.execute(query)
-        records = []
-        while True:
-            rows = cursor.fetchmany(100)
-            if not rows:
-                break
-            records.extend(rows)
-        return records
-
-    def _download_file(self, url, local_filename):
-        try:
-            with requests.get(url, stream=True, headers={'x-api-key': self.slideshow_APIKey}) as r:
-                r.raise_for_status()
-                with open(local_filename, 'wb') as f:
-                    for chunk in r.iter_content(chunk_size=8192):
-                        f.write(chunk)
-            attempts = 0
-            while not os.path.exists(local_filename):
-                xbmc.sleep(100)
-                attempts += 1
-                if attempts > 100:
-                    return False
-            return True
-        except:
-            return False
-
     def _delete_temporary_files(self, exiting=False):
         try:
-            for filename in glob.glob(ADDON_USERDATA_FOLDER+'*'+IMMICH_TEMP_FILE_EXTENSION):
-                if exiting or (os.path.getmtime(filename) < (time.time() - (self.slideshow_time*30))):
-                    os.remove(filename)
+            for file in ADDON_USERDATA_FOLDER.glob(f"*{IMMICH_TEMP_FILE_EXTENSION}"):
+                if exiting or (file.stat().st_mtime < (time.time() - (self.setting_time * 30))):
+                    file.unlink(missing_ok=True)
         except:
             pass
-
-    def _api_call(self, action, api, payload):
-        response = {}
-        try:
-            headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'x-api-key': self.slideshow_APIKey
-            }
-            resp = requests.request(action, self.slideshow_URL+api, headers=headers, data=payload)
-            response = json.loads(resp.text)
-            if resp.status_code == 401:
-                self.stop = True;
-                raise SlideshowException(ADDON.getLocalizedString(30420),ADDON.getLocalizedString(30430),response)
-            elif resp.status_code != 200:
-                self.stop = True;
-                raise SlideshowException(ADDON.getLocalizedString(30400),ADDON.getLocalizedString(30410),response)
-        except SlideshowException:
-            raise
-        except requests.exceptions.ConnectionError as ce:
-            raise SlideshowException(ADDON.getLocalizedString(30400), str(ce))
-        return response
 
     def _set_prop(self, name, value):
         self.winid.setProperty('Screensaver.%s' % name, value)
@@ -591,32 +579,11 @@ class Screensaver(xbmcgui.WindowXMLDialog):
 
     def _exit(self):
         # exit when onScreensaverDeactivated gets called
-        self.stop = True
-        # clear our properties on exit
-        self._clear_prop('Fade1')
-        self._clear_prop('Fade2')
-        self._clear_prop('FadeinLabels')
-        self._clear_prop('FadeoutLabels')
-        self._clear_prop('Dim')
-        self._clear_prop('Music')
-        self._clear_prop('Clock')
-        self._clear_prop('Splash')
-        self._clear_prop('SkinName')
-        self._clear_prop('Headline')
-        self._clear_prop('Caption')
-        self._clear_prop('Sublocation')
-        self._clear_prop('City')
-        self._clear_prop('State')
-        self._clear_prop('Country')
-        self._clear_prop('Date')
-        self._clear_prop('Time')
         self.close()
 
-class SlideshowException(Exception):
-    def __init__(self,header,message,network_response={}):
-        self.header = header
-        self.message = message
-        self.network_response = network_response
+class ScreensaverAbortException(Exception):
+    # Used to end the screensaver when a key is pressed
+    pass
 
 # Notify when screensaver is to stop
 class MyMonitor(xbmc.Monitor):

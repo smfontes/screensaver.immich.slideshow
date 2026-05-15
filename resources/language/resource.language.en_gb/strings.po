@@ -11,174 +11,255 @@ msgctxt "Addon Description"
 msgid "This screensaver uses the database created by [I]immich[/I] to show groups of pictures that were all taken on the same date. A date is chosen at random, then pictures from the chosen date are displayed, ordered by time taken. After some number of pictures are displayed, the next random date is chosen. This allows you to see random selections from your picture collection, but within the context of other pictures from the same event."
 msgstr "This screensaver uses the database created by [I]immich[/I] to show groups of pictures that were all taken on the same date. A date is chosen at random, then pictures from the chosen date are displayed, ordered by time taken. After some number of pictures are displayed, the next random date is chosen. This allows you to see random selections from your picture collection, but within the context of other pictures from the same event."
 
-msgctxt "#30000"
+msgctxt "#30100"
 msgid "Basic"
 msgstr "Basic"
 
-msgctxt "#30100"
+msgctxt "#30101"
+msgid "Basic screensaver settings"
+msgstr "Help for msgtxt 30100"
+
+msgctxt "#30110"
 msgstr "URL of immich server"
 msgid "URL of the immich server"
 
-msgctxt "#30101"
-msgstr "Help for msgctxt #30100"
+msgctxt "#30111"
+msgstr "Help for msgctxt #31110"
 msgid "Where your immich server is running. Include the protocol (http:// or https://)"
 
-msgctxt "#30110"
+msgctxt "#30120"
 msgid "APIKey"
 msgstr "APIkey"
 
-msgctxt "#30111"
-msgstr "Help for msgctxt #30110"
+msgctxt "#30121"
+msgstr "Help for msgctxt #31120"
 msgid "In the immich app, open user settings (/user-settings), open API Keys tab and click 'New API Key'. Create it and copy to these settings."
 
-msgctxt "#30160"
+msgctxt "#30130"
 msgid "Amount of seconds to display each image"
 msgstr "Amount of seconds to display each image"
 
-msgctxt "#30161"
-msgstr "Help for msgctxt #30160"
+msgctxt "#30131"
+msgstr "Help for msgctxt #31130"
 msgid "Specifies how long each image will be shown"
 
-msgctxt "#30170"
+msgctxt "#30140"
 msgid "Maximum number of pictures to display in each group"
 msgstr "Maximum number of pictures to display in each group"
 
-msgctxt "#30171"
-msgstr "Help for msgctxt #30170"
+msgctxt "#30141"
+msgstr "Help for msgctxt #31140"
 msgid "Specifies the maximum number of pictures to show for each date. Specify zero (0) to show ALL of the pictures taken on the same date."
 
-msgctxt "#30180"
+msgctxt "#30150"
 msgid "Dim level"
 msgstr "Dim level"
 
-msgctxt "#30181"
-msgstr "Help for msgctxt #30180"
+msgctxt "#30151"
+msgstr "Help for msgctxt #31150"
 msgid "Dims the pictures of the screensaver by some percentage."
 
-msgctxt "#30310"
+msgctxt "#30200"
+msgid "Display Options"
+msgstr "Display Options"
+
+msgctxt "#30201"
+msgstr "Help for msgctxt #30200"
+msgid "Select options for the images and information to be shown"
+
+msgctxt "#30210"
 msgid "Display picture date"
 msgstr "Display picture date"
 
-msgctxt "#30311"
-msgstr "Help for msgctxt #30310"
+msgctxt "#30211"
+msgstr "Help for msgctxt #30210"
 msgid "Display the ImageDateTime of the picture."
 
-msgctxt "#30320"
+msgctxt "#30220"
 msgid "Display additional picture tags"
 msgstr "Display additional picture tags"
 
-msgctxt "#30321"
-msgstr "Help for msgctxt #30320"
+msgctxt "#30221"
+msgstr "Help for msgctxt #30220"
 msgid "Display 'Headline', 'Caption/abstract', 'Sub-location', 'City', 'Province/state', and 'Country/primary location name' for those tags that exist in the image."
 
-msgctxt "#30330"
+msgctxt "#30230"
 msgid "Display music info during audio playback"
 msgstr "Display music info during audio playback"
 
-msgctxt "#30331"
-msgstr "Help for #msgctxt #30330"
+msgctxt "#30231"
+msgstr "Help for #msgctxt #30230"
 msgid "Display information about currently playing music."
 
-msgctxt "#30340"
+msgctxt "#30240"
 msgid "Display Clock"
 msgstr "Display Clock"
 
-msgctxt "#30341"
-msgstr "Help for #msgctxt #30340"
+msgctxt "#30241"
+msgstr "Help for #msgctxt #30240"
 msgid "Display the clock."
 
-msgctxt "#30350"
+msgctxt "#30250"
 msgid "Display burst mode images more quickly"
 msgstr "Display burst mode images more quickly"
 
-msgctxt "#30351"
-msgstr "Help for msgctxt #30350"
+msgctxt "#30251"
+msgstr "Help for msgctxt #30250"
 msgid "If pictures are taken in 'burst mode' with a camera, there may be many very similar pictures occuring in the same second. This makes for a very boring slideshow if each slide is shown for a few seconds. Select this to speed up the sldeshow so that there is much less time between 'burst mode' images. If this is not enabled, only the first and last pictures in a group taken within seconds of each other will be shown."
 
-msgctxt "#30360"
+msgctxt "#30260"
 msgid "Use slide effect for panorama images"
 msgstr "Use slide effect for panorama images"
 
-msgctxt "#30361"
-msgstr "Help for msgctxt #30360"
-msgid "For panorama images, start and one end of the image and pan across to the other end"
+msgctxt "#30261"
+msgstr "Help for msgctxt #30260"
+msgid "For panorama images, start at one end of the image and pan across to the other end"
 
-msgctxt "#30370"
+msgctxt "#30270"
 msgid "Use 'Ken Burns' effects on slides"
 msgstr "Use 'Ken Burns' effects on slidess"
 
-msgctxt "#30371"
-msgstr "Help for msgctxt #30360"
+msgctxt "#30271"
+msgstr "Help for msgctxt #30270"
 msgid "Slides will be slowly panned or zoomed during display"
 
-msgctxt "#30500"
+msgctxt "#30280"
+msgid "Only display favorites"
+msgstr "Only display favorites"
+
+msgctxt "#30281"
+msgstr "Help for msgctxt #30280"
+msgid "Only dates with favorites will be used, and only the favorites on those days will be shown. If displaying an album, only the favorites in an album will be shown. If there are no favorites, the setting is ignored"
+
+msgctxt "#30290"
+msgid "Use albums for slideshow pictures"
+msgstr "Use albums for slideshow pictures"
+
+msgctxt "#30291"
+msgstr "Help for msgctxt #30290"
+msgid "Select albums; only pictures from those albums will be shown"
+
+msgctxt "#30292"
+msgid "Select (or view selected) Album Names"
+msgstr "Select (or view selected) Album Names"
+
+msgctxt "#30293"
+msgstr "Help for msgctxt #30292"
+msgid "Choose the album names from a list of available albums."
+
+msgctxt "#30294"
+msgid "Display Album Name"
+msgstr "Display Album Name"
+
+msgctxt "#30295"
+msgstr "Help for msgctxt #30294"
+msgid "Display he name of the album for the current picture."
+
+msgctxt "#30296"
+msgid "Use preview"
+msgstr "Use preview"
+
+msgctxt "#30297"
+msgstr "Help for msgctxt #30296"
+msgid "Use the Immich generated Preview instead of the original image, helpful for image formats incompatible with Kodi"
+
+
+msgctxt "#30300"
 msgstr ""
 msgid "Advanced"
 
-msgctxt "#30511"
-msgstr "Help for msgctxt #30500"
+msgctxt "#30301"
+msgstr "Help for msgctxt #30300"
 msgid "Improve disribution of dates for picture groups"
 
-msgctxt "#30510"
+msgctxt "#30310"
 msgstr ""
 msgid "Use direct database lookup to get unique dates for image groups"
 
-msgctxt "#30511"
-msgstr "Help for msgctxt #30510"
+msgctxt "#30311"
+msgstr "Help for msgctxt #30310"
 msgid "Choice of date is more distributed"
 
-msgctxt "#30520"
+msgctxt "#30320"
 msgstr "Host of the immich database server"
 msgid "Host of the immich database server"
 
-msgctxt "#30521"
-msgstr "Help for msgctxt #30521"
+msgctxt "#30321"
+msgstr "Help for msgctxt #30320"
 msgid "Where your immich server is running"
 
-msgctxt "#30530"
+msgctxt "#30330"
 msgid "Port number of the immich database server"
 msgstr "Port number of the immich database server"
 
-msgctxt "#30531"
-msgstr "Help for msgctxt #30530"
+msgctxt "#30331"
+msgstr "Help for msgctxt #30330"
 msgid "Port number of the database service in immich. Typically 5432. You will have to edit the docker-compose.yml file for immich to expose the port for remote access. Add \n'ports:\n\t- 5432:5432'\n to the database service."
 
-msgctxt "#30540"
+msgctxt "#30340"
 msgid "Name of the immich database"
 msgstr "Name of the immich database"
 
-msgctxt "#30541"
-msgstr "Help for msgctxt #30540"
+msgctxt "#30341"
+msgstr "Help for msgctxt #30340"
 msgid "The value of the DB_DATABASE_NAME variable in the immich .env file"
 
-msgctxt "#30550"
+msgctxt "#30350"
 msgid "Name of the immich database user"
 msgstr "Name of the immich database user"
 
-msgctxt "#30551"
-msgstr "Help for msgctxt #30550"
+msgctxt "#30351"
+msgstr "Help for msgctxt #30350"
 msgid "The value of the DB_USERNAME variable in the immich .env file"
 
-msgctxt "#30560"
+msgctxt "#30360"
 msgid "The immich database password"
 msgstr "The immich database password"
 
-msgctxt "#30561"
-msgstr "Help for msgctxt #30560"
+msgctxt "#30361"
+msgstr "Help for msgctxt #30360"
 msgid "The value of the DB_PASSWORD variable in the immich .env file"
 
-msgctxt "#30400"
+msgctxt "#30810"
+msgid "Album Names"
+msgstr "Album Names"
+
+msgctxt "#30820"
+msgid "No Albums found"
+msgstr "No Albums found"
+
+msgctxt "#30830"
+msgid "Failed to update albums list"
+msgstr "Failed to update albums list"
+
+msgctxt "#30840"
+msgid "Album(s) selected"
+msgstr "Albums(s) selected"
+
+msgctxt "#30900"
 msgid "Connection error"
 msgstr ""
 
-msgctxt "#30410"
-msgid "Can't connect to the server. Check the address of Immich server and API key."
+msgctxt "#30910"
+msgid "Connection timeout"
 msgstr ""
 
-msgctxt "#30420"
+msgctxt "#30920"
 msgid "Authorization error"
 msgstr ""
 
-msgctxt "#30430"
+msgctxt "#30921"
 msgid "API Key may be invalid."
+msgstr ""
+
+msgctxt "#30930"
+msgid "API request failed"
+msgstr ""
+
+msgctxt "#30931"
+msgid "Status Code"
+msgstr ""
+
+msgctxt "#30940"
+msgid "Exception type not handled"
 msgstr ""

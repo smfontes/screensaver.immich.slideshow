@@ -12,37 +12,33 @@
 				<texture>screensaver-black.png</texture>
 				<animation effect="fade" start="0" end="100" time="500">WindowOpen</animation>
 			</control>
+			<control type="image" id="99">
+			    <visible>false</visible>
+			    <texture background="true"></texture>
+			</control>
 			<control type="group">
 				<description>Background Images</description>
-				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Splash),hide)">
-					<effect type="fade" start="0" end="100" time="500"/>
-				</animation>
-				<control type="group">
-					<control type="group">
-						<description>background image 1</description>
-						<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Fade1),1)">
-							<effect type="fade" start="100" end="0" time="2000"/>
-						</animation>
-						<control type="image" id="3">
-							<aspectratio>scale</aspectratio>
-							<texture background="true"></texture>
-						</control>
-					</control>
-					<control type="group">
-						<description>background image 2</description>
-						<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Fade2),1)">
-							<effect type="fade" start="100" end="0" time="2000"/>
-						</animation>
-						<control type="image" id="4">
-							<aspectratio>scale</aspectratio>
-							<texture background="true"></texture>
-						</control>
-					</control>
-					<control type="image">
-						<description>Make the background images darker</description>
-						<animation effect="fade" start="75" end="75" time="0" condition="true">Conditional</animation>
-						<texture>screensaver-black.png</texture>
-					</control>
+				<control type="image" id="3">
+					<description>background image 1</description>
+					<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Background),0)">
+						<effect type="fade" start="0" end="100" time="1000"/>
+					</animation>
+					<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Background),1)">
+						<effect type="fade" start="100" end="0" time="1000"/>
+					</animation>
+					<aspectratio>scale</aspectratio>
+					<texture background="true" colordiffuse="40FFFFFF"></texture>
+				</control>
+				<control type="image" id="4">
+					<description>background image 2</description>
+					<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Background),1)">
+						<effect type="fade" start="0" end="100" time="1000"/>
+					</animation>
+					<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Background),0)">
+						<effect type="fade" start="100" end="0" time="1000"/>
+					</animation>					
+					<aspectratio>scale</aspectratio>
+					<texture background="true" colordiffuse="40FFFFFF"></texture>
 				</control>
 			</control>
 			<control type="image" id="1">
@@ -56,7 +52,7 @@
 				<aspectratio>keep</aspectratio>
 			</control>
 		</control>
-		<control type="grouplist">
+		<control type="grouplist" id="100">
 			<description>Information block</description>
 			<left>15</left>
 			<bottom>20</bottom>
@@ -65,44 +61,60 @@
 			<align>bottom</align>
 			<textcolor>FFFFFFFF</textcolor>
 			<itemgap>0</itemgap>
-			<control type="button">
+			<control type="button" id="101">
+				<description>album</description>
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),0)">
+					<effect type="fade" start="0" end="100" time="1000"/>
+				</animation>
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),1) + !String.IsEqual(Window.Property(Screensaver.NoFade),1)">
+					<effect type="fade" start="100" end="0" time="1000"/>
+				</animation>
+				<height>36</height>
+				<width>auto</width>
+				<align>left</align>
+				<aligny>center</aligny>
+				<visible>!String.IsEmpty(Window.Property(Screensaver.AlbumName0))</visible>
+				<label>$INFO[Window.Property(Screensaver.AlbumName0)]</label>
+				<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
+			</control>
+			<control type="button" id="102">
 				<description>headline</description>
-				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.FadeinLabels),1)">
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),0)">
 					<effect type="fade" start="0" end="100" time="1000"/>
 				</animation>
-				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.FadeoutLabels),1)">
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),1) + !String.IsEqual(Window.Property(Screensaver.NoFade),1)">
 					<effect type="fade" start="100" end="0" time="1000"/>
 				</animation>
 				<height>36</height>
 				<width>auto</width>
 				<align>left</align>
 				<aligny>center</aligny>
-				<visible>!String.IsEmpty(Window.Property(Screensaver.Headline))</visible>
-				<label>$INFO[Window.Property(Screensaver.Headline)]</label>
+				<visible>!String.IsEmpty(Window.Property(Screensaver.Headline0))</visible>
+				<label>$INFO[Window.Property(Screensaver.Headline0)]</label>
 				<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
 			</control>
-			<control type="button">
+			<control type="button" id="103">
 				<description>caption</description>
-				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.FadeinLabels),1)">
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),0)">
 					<effect type="fade" start="0" end="100" time="1000"/>
 				</animation>
-				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.FadeoutLabels),1)">
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),1) + !String.IsEqual(Window.Property(Screensaver.NoFade),1)">
 					<effect type="fade" start="100" end="0" time="1000"/>
 				</animation>
 				<height>36</height>
 				<width>auto</width>
 				<align>left</align>
 				<aligny>center</aligny>
-				<visible>!String.IsEmpty(Window.Property(Screensaver.Caption))</visible>
-				<label>$INFO[Window.Property(Screensaver.Caption)]</label>
+				<visible>!String.IsEmpty(Window.Property(Screensaver.Caption0))</visible>
+				<label>$INFO[Window.Property(Screensaver.Caption0)]</label>
 				<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
 			</control>
-			<control type="button">
+			<control type="button" id="104">
 				<description>location</description>
-				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.FadeinLabels),1)">
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),0)">
 					<effect type="fade" start="0" end="100" time="1000"/>
 				</animation>
-				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.FadeoutLabels),1)">
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),1) + !String.IsEqual(Window.Property(Screensaver.NoFade),1)">
 					<effect type="fade" start="100" end="0" time="1000"/>
 				</animation>
 				<height>36</height>
@@ -110,20 +122,20 @@
 				<align>left</align>
 				<aligny>center</aligny>
 				<visible>
-					!String.IsEmpty(Window.Property(Screensaver.Sublocation)) |
-					!String.IsEmpty(Window.Property(Screensaver.City)) |
-					!String.IsEmpty(Window.Property(Screensaver.State)) |
-					!String.IsEmpty(Window.Property(Screensaver.Country)) 
+					!String.IsEmpty(Window.Property(Screensaver.Sublocation0)) |
+					!String.IsEmpty(Window.Property(Screensaver.City0)) |
+					!String.IsEmpty(Window.Property(Screensaver.State0)) |
+					!String.IsEmpty(Window.Property(Screensaver.Country0)) 
 				</visible>
-				<label>$INFO[Window.Property(Screensaver.Sublocation),,$COMMA ]$INFO[Window.Property(Screensaver.City),,$COMMA ]$INFO[Window.Property(Screensaver.State),,$COMMA ]$INFO[Window.Property(Screensaver.Country)]</label>
+				<label>$INFO[Window.Property(Screensaver.Sublocation0),,$COMMA ]$INFO[Window.Property(Screensaver.City0),,$COMMA ]$INFO[Window.Property(Screensaver.State0),,$COMMA ]$INFO[Window.Property(Screensaver.Country0)]</label>
 				<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
 			</control>
-			<control type="button">
+			<control type="button" id="105">
 				<description>date and time</description>
-				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.FadeinLabels),1)">
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),0)">
 					<effect type="fade" start="0" end="100" time="1000"/>
 				</animation>
-				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.FadeoutLabels),1)">
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),1) + !String.IsEqual(Window.Property(Screensaver.NoFade),1)">
 					<effect type="fade" start="100" end="0" time="1000"/>
 				</animation>
 				<height>36</height>
@@ -131,13 +143,171 @@
 				<align>left</align>
 				<aligny>center</aligny>
 				<visible>
-					!String.IsEmpty(Window.Property(Screensaver.Date)) | 
-					!String.IsEmpty(Window.Property(Screensaver.Time))
+					!String.IsEmpty(Window.Property(Screensaver.Date0)) | 
+					!String.IsEmpty(Window.Property(Screensaver.Time0))
 				</visible>
-				<label>$INFO[Window.Property(Screensaver.Date),, - ]$INFO[Window.Property(Screensaver.Time)]</label>
+				<label>$INFO[Window.Property(Screensaver.Date0),, - ]$INFO[Window.Property(Screensaver.Time0)]</label>
 				<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
 			</control>
-			<control type=group>
+			<control type="group" id="106">
+				<description>Music Info</description>
+				<visible>Player.HasAudio + String.IsEqual(Window.Property(Screensaver.Music),show)</visible>
+				<height>210</height>
+				<control type="grouplist">
+					<height>190</height>
+					<left>210</left>
+					<top>30</top>
+					<align>left</align>
+					<itemgap>0</itemgap>
+					<control type="button">
+						<width>auto</width>
+						<height>38</height>
+						<font>font13</font>
+        				<shadowcolor>FF000000</shadowcolor>
+						<label> [B]$INFO[MusicPlayer.Title][/B]</label>
+						<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
+					</control>
+					<control type="button">
+						<width>auto</width>
+						<height>38</height>
+						<font>font13</font>
+        				<shadowcolor>FF000000</shadowcolor>
+						<label> $INFO[MusicPlayer.Artist]</label>
+						<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
+					</control>
+					<control type="button">
+						<width>auto</width>
+						<height>38</height>
+						<font>font13</font>
+        				<shadowcolor>FF000000</shadowcolor>
+						<label> [I]$INFO[MusicPlayer.Album][/I]</label>
+						<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
+					</control>
+					<control type="button">
+						<width>auto</width>
+						<height>38</height>
+						<font>font13</font>
+        				<shadowcolor>FF000000</shadowcolor>
+						<label> $INFO[Player.Time(hh:mm:ss)] / $INFO[Player.Duration(hh:mm:ss)]</label>
+						<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
+					</control>
+					<control type="button">
+						<width>auto</width>
+						<height>28</height>
+        				<font>font10</font>
+        				<shadowcolor>FF000000</shadowcolor>
+        				<textcolor>FF888888</textcolor>
+						<label> Next: [B]$INFO[MusicPlayer.offset(1).Title][/B] ($INFO[MusicPlayer.offset(1).Artist])</label>
+						<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
+					</control>
+				</control>
+				<control type="image">
+					<top>5</top>
+					<width>210</width>
+					<height>210</height>
+					<texture fallback="DefaultAlbumCover.png">$INFO[MusicPlayer.Cover]</texture>
+					<aspectratio>stretch</aspectratio>
+				</control>
+			</control>
+		</control>
+		<control type="grouplist" id="200">
+			<description>Information block</description>
+			<left>15</left>
+			<bottom>20</bottom>
+			<width>1620</width>
+			<height>880</height>
+			<align>bottom</align>
+			<textcolor>FFFFFFFF</textcolor>
+			<itemgap>0</itemgap>
+			<control type="button" id="201">
+				<description>album</description>
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),1)">
+					<effect type="fade" start="0" end="100" time="1000"/>
+				</animation>
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),0)">
+					<effect type="fade" start="100" end="0" time="1000"/>
+				</animation>
+				<height>36</height>
+				<width>auto</width>
+				<align>left</align>
+				<aligny>center</aligny>
+				<visible>!String.IsEmpty(Window.Property(Screensaver.AlbumName1))</visible>
+				<label>$INFO[Window.Property(Screensaver.AlbumName1)]</label>
+				<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
+			</control>
+			<control type="button" id="202">
+				<description>headline</description>
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),1)">
+					<effect type="fade" start="0" end="100" time="1000"/>
+				</animation>
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),0)">
+					<effect type="fade" start="100" end="0" time="1000"/>
+				</animation>
+				<height>36</height>
+				<width>auto</width>
+				<align>left</align>
+				<aligny>center</aligny>
+				<visible>!String.IsEmpty(Window.Property(Screensaver.Headline1))</visible>
+				<label>$INFO[Window.Property(Screensaver.Headline1)]</label>
+				<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
+			</control>
+			<control type="button" id="203">
+				<description>caption</description>
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),1)">
+					<effect type="fade" start="0" end="100" time="1000"/>
+				</animation>
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),0)">
+					<effect type="fade" start="100" end="0" time="1000"/>
+				</animation>
+				<height>36</height>
+				<width>auto</width>
+				<align>left</align>
+				<aligny>center</aligny>
+				<visible>!String.IsEmpty(Window.Property(Screensaver.Caption1))</visible>
+				<label>$INFO[Window.Property(Screensaver.Caption1)]</label>
+				<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
+			</control>
+			<control type="button" id="204">
+				<description>location</description>
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),1)">
+					<effect type="fade" start="0" end="100" time="1000"/>
+				</animation>
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),0)">
+					<effect type="fade" start="100" end="0" time="1000"/>
+				</animation>
+				<height>36</height>
+				<width>auto</width>
+				<align>left</align>
+				<aligny>center</aligny>
+				<visible>
+					!String.IsEmpty(Window.Property(Screensaver.Sublocation1)) |
+					!String.IsEmpty(Window.Property(Screensaver.City1)) |
+					!String.IsEmpty(Window.Property(Screensaver.State1)) |
+					!String.IsEmpty(Window.Property(Screensaver.Country1)) 
+				</visible>
+				<label>$INFO[Window.Property(Screensaver.Sublocation1),,$COMMA ]$INFO[Window.Property(Screensaver.City1),,$COMMA ]$INFO[Window.Property(Screensaver.State1),,$COMMA ]$INFO[Window.Property(Screensaver.Country1)]</label>
+				<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
+			</control>
+			<control type="button" id="205">
+				<description>date and time</description>
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),1)">
+					<effect type="fade" start="0" end="100" time="1000"/>
+				</animation>
+				<animation type="Conditional" condition="String.IsEqual(Window.Property(Screensaver.Info),0)">
+					<effect type="fade" start="100" end="0" time="1000"/>
+				</animation>
+				<height>36</height>
+				<width>auto</width>
+				<align>left</align>
+				<aligny>center</aligny>
+				<visible>
+					!String.IsEmpty(Window.Property(Screensaver.Date1)) | 
+					!String.IsEmpty(Window.Property(Screensaver.Time1))
+				</visible>
+				<label>$INFO[Window.Property(Screensaver.Date1),, - ]$INFO[Window.Property(Screensaver.Time1)]</label>
+				<texturenofocus colordiffuse="FF000000">screensaver-highlight.png</texturenofocus>
+			</control>
+			<control type="group" id="206">
 				<description>Music Info</description>
 				<visible>Player.HasAudio + String.IsEqual(Window.Property(Screensaver.Music),show)</visible>
 				<height>210</height>

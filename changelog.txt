@@ -1,6 +1,11 @@
 v1.0.0
 - initial release
-V1.1.0
+v1.1.0
 - Added option to pan across panoramic slides
-- Added ability to use 'Ken Burns' effects
-- Added ability to select dates from a list of unique dates that pictures where taken
+- Added option to use 'Ken Burns' effects
+- Added option to select dates from a list of unique dates that pictures where taken
+v1.2.0
+- Added option to only use images that are marked as favorite
+- Added option to only use images from selected albums
+- Now retrieves thumbnails for heic and heif images
+- Improved error handling for network connections
